@@ -26,6 +26,7 @@
     'Eksternt lag (OGC)': externalLayer
   };
 
+  nodhavnLayer.addTo(map); // vis nødhavn som standard
   L.control.layers(baseLayers, overlays).addTo(map);
 
   // --- Romlig filter: klikk på kartet → vis nødhavn innenfor X km ---
