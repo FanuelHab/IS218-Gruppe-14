@@ -22,13 +22,13 @@
   var externalLayer = createExternalLayer();
 
   var overlays = {
-    'Nødhavn (GeoJSON)': nodhavnLayer,
+    'Nødhavn (søkeresultat)': nodhavnLayer,
     'Eksternt lag (OGC)': externalLayer
   };
 
   L.control.layers(baseLayers, overlays).addTo(map);
 
-  // --- Romlig filter: klikk på kartet → vis nødhavn innenfor X km ---
+  // --- Ren flyt: velg avstand → klikk kart → vis kun nødhavn innenfor radius (klikk på markør for data) ---
   var filterDistanceKm = 100;
   var filterClickHandler = null;
   var filterRadiusLayer = null;
@@ -53,34 +53,49 @@
   }
 
   function applySpatialFilter(clickLatLng) {
+    var geojson = window.nodhavnGeoJSON;
+    if (!geojson || !geojson.features || geojson.features.length === 0) {
+      filterHint.textContent = 'Data lastes fortsatt. Prøv igjen om et øyeblikk.';
+      return;
+    }
     var km = filterDistanceKm;
+    var clickLat = clickLatLng.lat;
+    var clickLng = clickLatLng.lng;
+    var within = geojson.features.filter(function (f) {
+      var coords = f.geometry && f.geometry.coordinates;
+      if (!coords || coords.length < 2) return false;
+      var d = getDistanceKm(clickLat, clickLng, coords[1], coords[0]);
+      return d <= km;
+    });
     removeFilterOverlay();
+    nodhavnLayer.clearLayers();
+    nodhavnLayer.addData({ type: 'FeatureCollection', features: within });
+    nodhavnLayer.addTo(map);
     var group = L.layerGroup();
     var circle = L.circle(clickLatLng, {
       radius: km * 1000,
       color: '#0066cc',
       fillColor: '#0066cc',
       fillOpacity: 0.15,
-      weight: 2
+      weight: 2,
+      interactive: false
     });
     var marker = L.marker(clickLatLng).bindPopup('Valgt punkt<br>Avstand: ' + km + ' km');
     group.addLayer(circle);
     group.addLayer(marker);
     group.addTo(map);
     filterRadiusLayer = group;
-    nodhavnLayer.eachLayer(function (layer) {
-      var latlng = layer.getLatLng ? layer.getLatLng() : (layer.getBounds && layer.getBounds().getCenter());
-      if (!latlng) return;
-      var d = getDistanceKm(clickLatLng.lat, clickLatLng.lng, latlng.lat, latlng.lng);
-      layer.setStyle({ opacity: d <= km ? 1 : 0.2, fillOpacity: d <= km ? 0.8 : 0.15 });
-    });
+    var n = within.length;
+    filterHint.textContent = n + ' nødhavn innenfor ' + km + ' km. Klikk på en markør for å se detaljer. Klikk «Finn nødhavner» for nytt søk.';
+    if (within.length > 0 && nodhavnLayer.getBounds().isValid()) {
+      map.fitBounds(nodhavnLayer.getBounds().pad(0.15));
+    }
   }
 
   function clearSpatialFilter() {
     removeFilterOverlay();
-    nodhavnLayer.eachLayer(function (layer) {
-      layer.setStyle({ opacity: 1, fillOpacity: 0.8 });
-    });
+    nodhavnLayer.clearLayers();
+    map.removeLayer(nodhavnLayer);
   }
 
   var filterBtn = document.getElementById('filter-btn');
@@ -93,10 +108,9 @@
       map.off('click', filterClickHandler);
     }
     clearSpatialFilter();
-    filterHint.textContent = 'Klikk på kartet for å finne nødhavner innenfor ' + filterDistanceKm + ' km.';
+    filterHint.textContent = 'Velg avstand (km) og klikk deretter på kartet for å finne nødhavner innenfor ' + filterDistanceKm + ' km.';
     filterClickHandler = function (e) {
       applySpatialFilter(e.latlng);
-      filterHint.textContent = 'Valgt avstand: ' + filterDistanceKm + ' km fra markert punkt. Sirkel viser området. Klikk "Finn nødhavner..." for nytt søk.';
     };
     map.on('click', filterClickHandler);
   });
