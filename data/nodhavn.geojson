@@ -1,0 +1,65 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Bergen havn",
+        "type": "Sivil",
+        "description": "Placeholder – erstattes av Hamdis data"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [5.32, 60.39]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Trondheim havn",
+        "type": "Sivil",
+        "description": "Placeholder – erstattes av Hamdis data"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [10.42, 63.43]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Bodø havn",
+        "type": "Fiskeri",
+        "description": "Placeholder – erstattes av Hamdis data"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [14.38, 67.28]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Stavanger havn",
+        "type": "Sivil",
+        "description": "Placeholder – erstattes av Hamdis data"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [5.73, 58.97]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Tromsø havn",
+        "type": "Militær",
+        "description": "Placeholder – erstattes av Hamdis data"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [18.96, 69.65]
+      }
+    }
+  ]
+}
