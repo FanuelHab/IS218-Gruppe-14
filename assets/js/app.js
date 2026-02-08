@@ -10,7 +10,7 @@ const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png
 
 // Alternative base layer - OpenStreetMap Humanitarian
 const osmHumanitarianLayer = L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, Tiles courtesy of <a href="http://hot.openstreetmap.org/">Humanitarian OpenStreetMap Team</a>',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, Tiles courtesy of <a href="https://hot.openstreetmap.org/">Humanitarian OpenStreetMap Team</a>',
     maxZoom: 19
 });
 
@@ -18,14 +18,14 @@ const osmHumanitarianLayer = L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/
 osmLayer.addTo(map);
 
 // Create a marker with a popup example
-const marker = L.marker([40.7128, -74.0060]).addTo(map);
+const marker = L.marker([40.7128, -74.0060]);
 marker.bindPopup('<b>Welcome!</b><br>This is a sample popup.<br>You can add markers with custom content.').openPopup();
 
 // Create additional example markers
-const marker2 = L.marker([40.7580, -73.9855]).addTo(map);
+const marker2 = L.marker([40.7580, -73.9855]);
 marker2.bindPopup('<b>Times Square</b><br>A popular tourist destination.');
 
-const marker3 = L.marker([40.6892, -74.0445]).addTo(map);
+const marker3 = L.marker([40.6892, -74.0445]);
 marker3.bindPopup('<b>Statue of Liberty</b><br>An iconic landmark.');
 
 // Define base maps for layer control
@@ -36,6 +36,7 @@ const baseMaps = {
 
 // Create a layer group for markers (for future overlay control)
 const markersLayer = L.layerGroup([marker, marker2, marker3]);
+markersLayer.addTo(map);
 
 // Define overlay maps for layer control
 const overlayMaps = {
