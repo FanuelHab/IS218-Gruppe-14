@@ -106,18 +106,6 @@ function createNodhavnGeoJSONLayer() {
             e.originalEvent.stopPropagation();
           }
         });
-        markerLayer.on('mouseover', function () {
-          markerLayer.openPopup();
-        });
-        var closeTimer;
-        markerLayer.on('mouseout', function () {
-          closeTimer = window.setTimeout(function () {
-            markerLayer.closePopup();
-          }, 200);
-        });
-        markerLayer.on('popupopen', function () {
-          window.clearTimeout(closeTimer);
-        });
       }
     }
   });
@@ -125,12 +113,14 @@ function createNodhavnGeoJSONLayer() {
   fetchNodhavnFromSupabase()
     .then(function (geojson) {
       window.nodhavnGeoJSON = geojson;
+      layer.addData(geojson);
     })
     .catch(function (err) {
       fetch('data/nodhavn.geojson')
         .then(function (res) { return res.ok ? res.json() : Promise.reject(new Error('Kunne ikke laste GeoJSON')); })
         .then(function (geojson) {
           window.nodhavnGeoJSON = geojson;
+          layer.addData(geojson);
         })
         .catch(function () {
           console.warn('Kunne ikke laste nødhavn (verken Supabase eller lokal fil).');

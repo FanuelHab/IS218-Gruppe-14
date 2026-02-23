@@ -3,26 +3,88 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Nødhavn i Norge</title>
+  <title>Nødhavn i Norge - Finn nærmeste havn</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
   <link rel="stylesheet" href="css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
 </head>
 <body>
   <div id="map"></div>
-  <div id="filter-panel">
-    <h3>Romlig filter</h3>
-    <label>
-      Avstand (km):
-      <input type="number" id="filter-distance" value="100" min="1" max="500" step="10">
-    </label>
-    <button type="button" id="filter-btn">Finn nødhavner innenfor avstand</button>
-    <p id="filter-hint">Velg avstand (km), klikk «Finn nødhavner», deretter på kartet. Klikk på en markør for å se detaljer.</p>
-  </div>
+  <aside id="search-panel">
+    <header class="panel-header">
+      <div class="panel-logo">
+        <span class="logo-icon">⚓</span>
+        <div>
+          <h1>Nødhavner i Norge</h1>
+          <p class="panel-tagline">Finn nærmeste nødhavn langs kysten</p>
+        </div>
+      </div>
+      <button type="button" id="legend-help-btn" class="legend-help-btn" aria-label="Hva betyr fargene?">i</button>
+    </header>
+    <div id="legend-popover" class="legend-popover" hidden>
+      <ul class="legend-list">
+        <li><span class="legend-dot" style="background:#c0392b"></span> <strong>K1:</strong> Største fartøy (tankskip) – 330 m</li>
+        <li><span class="legend-dot" style="background:#27ae60"></span> <strong>K2:</strong> Fartøy &gt;5000 BT – 200 m</li>
+        <li><span class="legend-dot" style="background:#8e44ad"></span> <strong>K3:</strong> Mindre fartøy – 120 m</li>
+        <li><span class="legend-dot" style="background:#3388ff"></span> Annen/ukjent kategori</li>
+      </ul>
+    </div>
+
+    <section class="panel-section panel-section-primary">
+      <h2>Din posisjon</h2>
+      <button type="button" id="use-position-btn" class="btn btn-primary">
+        <span class="btn-icon">📍</span>
+        Bruk posisjonen min
+      </button>
+      <p class="section-hint">Innen 100 km radius. Krever tillatelse til posisjon.</p>
+    </section>
+
+    <section class="panel-section">
+      <h2>Velg punkt på kartet</h2>
+      <div class="slider-row">
+        <label for="filter-distance">Avstand: <output id="filter-distance-value">100</output> km</label>
+        <input type="range" id="filter-distance" value="100" min="10" max="500" step="5">
+      </div>
+      <button type="button" id="filter-btn" class="btn btn-secondary">
+        Finn nødhavner rundt punkt
+      </button>
+      <p class="section-hint">Klikk på kartet der du vil søke fra.</p>
+    </section>
+
+    <section class="panel-status">
+      <p id="filter-hint">Klikk på en av knappene over for å finne nødhavner.</p>
+      <button type="button" id="reset-btn" class="btn btn-ghost" title="Vis alle nødhavner på kartet">Vis alle nødhavner</button>
+    </section>
+
+    <button type="button" id="panel-toggle" class="panel-toggle" aria-label="Åpne/lukke meny">
+      <span class="toggle-icon">‹</span>
+    </button>
+  </aside>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase.js"></script>
   <script src="js/popups.js"></script>
   <script src="js/layers.js"></script>
   <script src="js/map.js"></script>
+  <script>
+    (function () {
+      var btn = document.getElementById('legend-help-btn');
+      var popover = document.getElementById('legend-popover');
+      if (btn && popover) {
+        btn.addEventListener('click', function () {
+          var isOpen = !popover.hidden;
+          popover.hidden = isOpen;
+        });
+        document.addEventListener('click', function (e) {
+          if (popover.hidden) return;
+          if (!popover.contains(e.target) && !btn.contains(e.target)) {
+            popover.hidden = true;
+          }
+        });
+      }
+    })();
+  </script>
 </body>
 </html>
