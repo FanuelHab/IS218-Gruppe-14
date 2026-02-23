@@ -54,62 +54,63 @@ Legg inn en video eller GIF som viser:
    # Using Node.js (with http-server installed)
    npx http-server
    ```
-   Gå til `http://localhost:8000` i nettleseren.
+   Then navigate to `http://localhost:8000` in your browser
 
-## Bruk
+### Usage
 
-- **Panorer kartet**: klikk og dra
-- **Zoom**: musehjul eller +/- knappene
-- **Layer control**: bruk lag-ikonet (typisk øverst til høyre) for å bytte bakgrunnskart og skru lag av/på
-- **Popups**: klikk på markører/objekter
+- **Pan the map**: Click and drag
+- **Zoom**: Use mouse wheel or the +/- buttons
+- **Layer Control**: Use the layers icon in the top-right corner to switch base maps
+- **Popups**: Click on markers to see popup information
 
-## Datakatalog
+### Adding Data
+
+#### GeoJSON Files
+
+1. Place your GeoJSON files in the `data/` directory
+2. Load them in `assets/js/app.js` using the fetch API
+3. See `data/README.md` for examples
+
+#### External APIs
+
+You can easily integrate external geospatial APIs by fetching data and adding it to the map as layers.
+
+### Datakatalog
+
+Oversikt over datasett som brukes i applikasjonen:
+
 | Datasett | Kilde | Format | Bearbeiding |
-|---|---|---|---|
-| OpenStreetMap basemap | OpenStreetMap (tile provider) | Raster tiles (XYZ) | Ingen lokal bearbeiding; vises direkte som tile layer i Leaflet |
-| CartoDB Light/Positron basemap | CARTO (tile provider) | Raster tiles (XYZ) | Ingen lokal bearbeiding; vises som alternativ basemap |
-| `data/nodhavn.geojson` | Lokal fil i repo (`data/`) | GeoJSON | Lastes med `fetch`, rendres med `L.geoJSON`, evt. styling/popup-binding i `assets/js/app.js` |
-| GeoNorge Topo2 | GeoNorge (OGC WMS) | WMS | Konsumeres direkte som WMS-layer i Leaflet; ingen lokal lagring |
+|----------|--------|--------|-------------|
+| **Nødhavn (primær)** | Supabase-database (tabell `nodhavn`), prosjekt-URL: `https://gdkqqlbjpfuscqpdribx.supabase.co` | Tabell med kolonner: longitude, latitude, navn, kommune, fylke, kategori, lenke_faktaark, forvaltningsstatus, nodhavnnummer. Leveres via Supabase REST-API. | Hentes med `fetchNodhavnFromSupabase()`, konverteres til GeoJSON FeatureCollection med Point-geometri og properties; vises som sirkelmarkører med farge etter type (sivil/militær/fiskeri), popups med navn og øvrige felter. |
+| **Nødhavn (fallback)** | Lokal fil i prosjektet: `data/nodhavn.geojson` | GeoJSON (FeatureCollection med Point-features og properties: name, type, description). | Brukes når Supabase ikke er tilgjengelig; lastes med `fetch('data/nodhavn.geojson')`, parses som JSON og brukes som GeoJSON-lag med samme styling og popups som primærkilde. |
+| **Kartbakgrunn** | OpenStreetMap / Leaflet tile-tjenere (f.eks. OSM, CartoDB) | Rasterkart (PNG/JPG) via XYZ-tiles (HTTP). | Lastes og vises som bakgrunnskart i Leaflet; ingen videre bearbeiding av data. |
 
-## Arkitekturskisse (dataflyt)
+### Dataflyt – fra kilde til kart
 
-```text
-           +-------------------+
-           |  Bruker (nettleser)|
-           +---------+---------+
-                     |
-                     v
-            +--------+---------+
-            | index.html       |
-            | - laster Leaflet |
-            | - laster app.js  |
-            +--------+---------+
-                     |
-                     v
-          +----------+-----------+
-          | assets/js/app.js     |
-          | - init map           |
-          | - base layers (OSM,  |
-          |   Carto)             |
-          | - data layers:       |
-          |   * fetch GeoJSON    |
-          |   * WMS (GeoNorge)   |
-          +----------+-----------+
-                     |
-     +---------------+-------------------+
-     |                                   |
-     v                                   v
-+----+------------------+      +---------+----------------+
-| Lokal data (data/*.   |      | Ekstern karttjeneste     |
-| geojson)              |      | (GeoNorge WMS Topo2)     |
-+-----------------------+      +--------------------------+
-                     |
-                     v
-              +------+------+
-              | Leaflet map |
-              | (render UI) |
-              +-------------+
-```
+- **Nødhavn:** Data kommer fra Supabase-tabellen `nodhavn` (eller fallback fra `data/nodhavn.geojson`). I `js/layers.js` hentes data med `fetchNodhavnFromSupabase()` eller ved feil med `fetch('data/nodhavn.geojson')`. Rader konverteres til GeoJSON FeatureCollection med punktgeometri og properties, deretter legges laget på Leaflet-kartet som sirkelmarkører med farge etter type og popups ved klikk.
+- **Kartbakgrunn:** OpenStreetMap/Leaflet tile-URL brukes direkte av Leaflet; tiles lastes og vises som bakgrunnskart uten egen bearbeiding i appen.
+
+### Forbedringspunkter ved nåværende løsning
+
+- **Tilgjengelighet:** Kart og popups bør støtte tastaturnavigasjon og skjermleser (ARIA, fokusrekkefølge og beskrivende tekster) for å møte WCAG-bedre.
+- **Brukertilbakemelding:** Ved lasting av data eller ved feil mangler det tydelig loading-indikator og feilmeldinger; brukeren vet ikke alltid om noe lastes eller har feilet.
+- **Mobil:** Interaksjon (zoom, pan, klikk på markører) kan forbedres for touch med større treffflater og tydeligere tilstand (f.eks. valgt markør).
+- **Søk og filtrering:** Det finnes ingen søk eller filter på nødhavn (fylke, type, kommune); slike funksjoner ville gjort det enklere å finne relevante havner.
+- **Offline:** Løsningen er avhengig av nett; en enkel service worker og caching av statisk innhold og GeoJSON-fallback kunne gi begrenset bruk uten nett.
+
+### Technologies Used
+
+- **Leaflet.js 1.9.4**: Interactive map library
+- **OpenStreetMap**: Free, editable map tiles
+- **HTML5/CSS3**: Modern web standards
+- **Vanilla JavaScript**: No frameworks required
+
+### Browser Support
+
+This application works in all modern browsers that support:
+- ES6 JavaScript
+- CSS3
+- HTML5
 
 ## Refleksjon (forbedringspunkter)
 - **Bedre datadokumentasjon**: Legge inn eksakte kildelenker (URL) og evt. lisensinfo for alle eksterne lag, samt tydelig versjonering av egne datasett.
