@@ -84,7 +84,8 @@ function fetchNodhavnFromSupabase() {
 function createNodhavnGeoJSONLayer() {
   var layer = L.geoJSON(null, {
     pointToLayer: function (feature, latlng) {
-      var color = getColorByType(feature.properties ? feature.properties.type : null);
+      var props = feature.properties || {};
+      var color = getColorByType(props.type || props.kategori);
       return L.circleMarker(latlng, {
         radius: 8,
         fillColor: color,
@@ -143,11 +144,11 @@ function createNodhavnGeoJSONLayer() {
  * Farge basert på type (datadrevet styling). Oppdater feltnavn/kategorier når Hamdi leverer.
  */
 function getColorByType(type) {
-  if (!type) return '#3388ff';
+  if (type == null || type === '') return '#3388ff';
   var t = String(type).toLowerCase();
-  if (t.indexOf('militær') !== -1 || t === 'military') return '#c0392b';
-  if (t.indexOf('sivil') !== -1 || t === 'civil') return '#27ae60';
-  if (t.indexOf('fiskeri') !== -1 || t === 'fishing') return '#8e44ad';
+  if (t === '1' || t.indexOf('militær') !== -1 || t === 'military') return '#c0392b';
+  if (t === '2' || t.indexOf('sivil') !== -1 || t === 'civil') return '#27ae60';
+  if (t === '3' || t.indexOf('fiskeri') !== -1 || t === 'fishing') return '#8e44ad';
   return '#3388ff';
 }
 

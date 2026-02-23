@@ -26,6 +26,7 @@
     'Eksternt lag (OGC)': externalLayer
   };
 
+  nodhavnLayer.addTo(map); // vis nødhavn som standard
   L.control.layers(baseLayers, overlays).addTo(map);
 
   // --- Ren flyt: velg avstand → klikk kart → vis kun nødhavn innenfor radius (klikk på markør for data) ---

@@ -1,18 +1,31 @@
 # IS218-Gruppe-14
 
-## Leaflet Web Map Application
+## Prosjektnavn & TL;DR
+Nødhavn i Norge – et webkart som lar Forsvaret (og andre beredskapsaktører) raskt finne nærmeste nødhavn ved å vise nødhavner på kart og gi enkel søk/valg av posisjon med avstand til nærmeste havn.
 
-A simple, clean web map application built with Leaflet.js that displays an interactive map with OpenStreetMap tiles.
+## Demo av system
+Legg inn en video eller GIF som viser:
+1) at kartet laster, 2) at du bytter basemap i layer control, og 3) at du slår på/av datasett (GeoJSON/WMS) og åpner en popup.
 
-### Features
+- Video (anbefalt): `docs/demo.mp4`
+- GIF (alternativ): `docs/demo.gif`
 
-- **Interactive Map**: Pan and zoom functionality with OpenStreetMap tiles
-- **Layer Control**: Switch between different base map styles
-- **Popup Examples**: Markers with informative popups
-- **Responsive Design**: Works on desktop and mobile devices
-- **Extensible Structure**: Easy to add GeoJSON data files and external API layers
+> Bytt ut lenkene under når demo-filen er lagt til i repoet.
 
-### Project Structure
+**Demo (GIF):**
+
+![Demo av kartløsningen](docs/demo.gif)
+
+## Teknisk stack
+- **Leaflet**: 1.9.4 (CDN via unpkg)
+- **OpenStreetMap tiles**: standard OSM tile server (via Leaflet)
+- **CartoDB Positron / Light**: Carto tile layer (via Leaflet)
+- **WMS (OGC)**: GeoNorge Topo2 (ekstern karttjeneste)
+- **JavaScript**: Vanilla JS (ingen build step)
+- **HTML/CSS**: HTML5 + CSS3
+- **Kjøring**: Statisk (åpne `index.html`) eller lokal webserver (Python/Node)
+
+## Prosjektstruktur
 
 ```
 .
@@ -23,21 +36,21 @@ A simple, clean web map application built with Leaflet.js that displays an inter
 │   └── js/
 │       └── app.js          # Map initialization and configuration
 ├── data/                   # Directory for GeoJSON files and data
-│   └── README.md          # Guide for adding data
-└── README.md              # This file
+│   └── README.md           # Guide for adding data
+└── README.md               # This file
 ```
 
-### Getting Started
+## Getting started
 
-1. **Open the application**: Simply open `index.html` in a web browser
-   - No build process or server required for basic usage
-   - For development with file loading (GeoJSON), use a local server
+1. **Åpne applikasjonen**: Åpne `index.html` i en nettleser.
+   - Ingen build-prosess eller server er nødvendig for enkel bruk.
+   - For utvikling med filinnlasting (GeoJSON via `fetch`) bør du bruke lokal server.
 
-2. **Using a local server** (optional, for loading GeoJSON data):
+2. **Kjør lokal server** (valgfritt, anbefalt for `fetch` av GeoJSON):
    ```bash
    # Using Python 3
    python -m http.server 8000
-   
+
    # Using Node.js (with http-server installed)
    npx http-server
    ```
@@ -99,6 +112,12 @@ This application works in all modern browsers that support:
 - CSS3
 - HTML5
 
-### License
+## Refleksjon (forbedringspunkter)
+- **Bedre datadokumentasjon**: Legge inn eksakte kildelenker (URL) og evt. lisensinfo for alle eksterne lag, samt tydelig versjonering av egne datasett.
+- **Feilhåndtering og robusthet**: Vise brukerfeedback ved nettverksfeil (f.eks. hvis GeoJSON/WMS ikke kan lastes) og fallback-løsninger.
+- **Ytelse**: For større GeoJSON kan man bruke generalisering, clustering, eller vector tiles for raskere rendering.
+- **UX og tilgjengelighet**: Forbedre kontrast, tastaturnavigasjon, og tydeligere legend/lag-navn; samt mobiltilpasning av kontroller.
+- **Testing og CI**: Enkle tester (linting) og GitHub Actions for å sikre at statiske filer bygger/kjører uten feil.
 
+## License
 See LICENSE file for details.
