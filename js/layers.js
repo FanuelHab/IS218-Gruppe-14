@@ -113,12 +113,14 @@ function createNodhavnGeoJSONLayer() {
   fetchNodhavnFromSupabase()
     .then(function (geojson) {
       window.nodhavnGeoJSON = geojson;
+      layer.addData(geojson);
     })
     .catch(function (err) {
       fetch('data/nodhavn.geojson')
         .then(function (res) { return res.ok ? res.json() : Promise.reject(new Error('Kunne ikke laste GeoJSON')); })
         .then(function (geojson) {
           window.nodhavnGeoJSON = geojson;
+          layer.addData(geojson);
         })
         .catch(function () {
           console.warn('Kunne ikke laste nødhavn (verken Supabase eller lokal fil).');

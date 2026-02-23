@@ -6,8 +6,11 @@
     wheelPxPerZoomLevel: 120,
     wheelDebounceTime: 80,
     zoomSnap: 1,
-    zoomDelta: 1
+    zoomDelta: 1,
+    zoomControl: false
   }).setView(NORWAY_CENTER, DEFAULT_ZOOM);
+
+  L.control.zoom({ position: 'bottomright' }).addTo(map);
 
   var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap'
@@ -38,6 +41,7 @@
   var filterDistanceKm = 100;
   var filterClickHandler = null;
   var filterRadiusLayer = null;
+  var activeFilterCenter = null;
 
   function getDistanceKm(lat1, lon1, lat2, lon2) {
     var R = 6371;
@@ -91,8 +95,10 @@
     group.addLayer(marker);
     group.addTo(map);
     filterRadiusLayer = group;
+    activeFilterCenter = clickLatLng;
     var n = within.length;
-    filterHint.textContent = n + ' nødhavn innenfor ' + km + ' km. Klikk på en markør for å se detaljer. Klikk «Finn nødhavner» for nytt søk.';
+    filterHint.textContent = n + ' nødhavn innenfor ' + km + ' km. Klikk på en markør for å se detaljer.';
+    filterHint.classList.add('has-results');
     if (within.length > 0 && nodhavnLayer.getBounds().isValid()) {
       map.fitBounds(nodhavnLayer.getBounds().pad(0.15));
     }
@@ -100,13 +106,47 @@
 
   function clearSpatialFilter() {
     removeFilterOverlay();
+    activeFilterCenter = null;
     nodhavnLayer.clearLayers();
     map.removeLayer(nodhavnLayer);
   }
 
+  function showAllNodhavn() {
+    if (filterClickHandler) {
+      map.off('click', filterClickHandler);
+      filterClickHandler = null;
+    }
+    removeFilterOverlay();
+    activeFilterCenter = null;
+    var geojson = window.nodhavnGeoJSON;
+    if (!geojson || !geojson.features) {
+      filterHint.textContent = 'Data lastes fortsatt. Prøv igjen om et øyeblikk.';
+      return;
+    }
+    nodhavnLayer.clearLayers();
+    nodhavnLayer.addData(geojson);
+    nodhavnLayer.addTo(map);
+    filterHint.textContent = 'Alle nødhavn i Norge vises. Bruk søkefunksjonen for å filtrere.';
+    filterHint.classList.remove('has-results');
+  }
+
   var filterBtn = document.getElementById('filter-btn');
   var filterDistanceInput = document.getElementById('filter-distance');
+  var filterDistanceValue = document.getElementById('filter-distance-value');
   var filterHint = document.getElementById('filter-hint');
+
+  function updateDistanceDisplay() {
+    if (filterDistanceValue) filterDistanceValue.textContent = filterDistanceInput.value;
+  }
+
+  filterDistanceInput.addEventListener('input', function () {
+    updateDistanceDisplay();
+    filterDistanceKm = Number(filterDistanceInput.value) || 100;
+    if (activeFilterCenter) {
+      applySpatialFilter(activeFilterCenter);
+    }
+  });
+  updateDistanceDisplay();
 
   filterBtn.addEventListener('click', function () {
     filterDistanceKm = Number(filterDistanceInput.value) || 100;
@@ -114,12 +154,23 @@
       map.off('click', filterClickHandler);
     }
     clearSpatialFilter();
-    filterHint.textContent = 'Velg avstand (km) og klikk deretter på kartet for å finne nødhavner innenfor ' + filterDistanceKm + ' km.';
+    filterHint.classList.remove('has-results');
+    filterHint.textContent = 'Klikk på kartet for å finne nødhavner innenfor ' + filterDistanceKm + ' km.';
     filterClickHandler = function (e) {
       applySpatialFilter(e.latlng);
     };
     map.on('click', filterClickHandler);
   });
+
+  var resetBtn = document.getElementById('reset-btn');
+  resetBtn.addEventListener('click', showAllNodhavn);
+
+  var panelToggle = document.getElementById('panel-toggle');
+  if (panelToggle) {
+    panelToggle.addEventListener('click', function () {
+      document.getElementById('search-panel').classList.toggle('collapsed');
+    });
+  }
 
   var usePositionBtn = document.getElementById('use-position-btn');
   usePositionBtn.addEventListener('click', function () {
