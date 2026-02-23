@@ -3,10 +3,10 @@
 ## Prosjektnavn & TL;DR
 Nødhavn i Norge – et webkart som lar Forsvaret (og andre beredskapsaktører) raskt finne nærmeste nødhavn ved å vise nødhavner på kart og gi enkel søk/valg av posisjon med avstand til nærmeste havn.
 
-## Video av systemet
+## GIF av systemet
+![NdhavniNorge-Finnnrmestehavn-GoogleChrome2026-02-2318-36-45-ezgif com-video-to-gif-converter](https://github.com/user-attachments/assets/1c21f08b-ea7a-4556-8557-ba171988fd6a)
 
 
-https://github.com/user-attachments/assets/baf334af-0d65-4e10-9561-f27ad99f13a5
 
 ## Teknisk stack
 - **Leaflet**: 1.9.4 (CDN via unpkg)
