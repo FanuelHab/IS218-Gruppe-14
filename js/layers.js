@@ -106,18 +106,6 @@ function createNodhavnGeoJSONLayer() {
             e.originalEvent.stopPropagation();
           }
         });
-        markerLayer.on('mouseover', function () {
-          markerLayer.openPopup();
-        });
-        var closeTimer;
-        markerLayer.on('mouseout', function () {
-          closeTimer = window.setTimeout(function () {
-            markerLayer.closePopup();
-          }, 200);
-        });
-        markerLayer.on('popupopen', function () {
-          window.clearTimeout(closeTimer);
-        });
       }
     }
   });
