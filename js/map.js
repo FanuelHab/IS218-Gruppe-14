@@ -2,7 +2,12 @@
   var NORWAY_CENTER = [62, 10];
   var DEFAULT_ZOOM = 5;
 
-  var map = L.map('map').setView(NORWAY_CENTER, DEFAULT_ZOOM);
+  var map = L.map('map', {
+    wheelPxPerZoomLevel: 120,
+    wheelDebounceTime: 80,
+    zoomSnap: 1,
+    zoomDelta: 1
+  }).setView(NORWAY_CENTER, DEFAULT_ZOOM);
 
   var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap'
@@ -114,6 +119,39 @@
       applySpatialFilter(e.latlng);
     };
     map.on('click', filterClickHandler);
+  });
+
+  var usePositionBtn = document.getElementById('use-position-btn');
+  usePositionBtn.addEventListener('click', function () {
+    if (filterClickHandler) {
+      map.off('click', filterClickHandler);
+      filterClickHandler = null;
+    }
+    if (!navigator.geolocation) {
+      filterHint.textContent = 'Støtte for geolokasjon er ikke tilgjengelig i nettleseren din.';
+      return;
+    }
+    filterHint.textContent = 'Henter posisjon...';
+    navigator.geolocation.getCurrentPosition(
+      function (pos) {
+        var lat = pos.coords.latitude;
+        var lng = pos.coords.longitude;
+        var userLatLng = { lat: lat, lng: lng };
+        filterDistanceKm = 100;
+        applySpatialFilter(userLatLng);
+        map.setView([lat, lng], 8);
+      },
+      function (err) {
+        if (err.code === 1) {
+          filterHint.textContent = 'Posisjon avvist. Gi nettleseren tillatelse til å bruke posisjonen din.';
+        } else if (err.code === 2) {
+          filterHint.textContent = 'Kunne ikke bestemme posisjon (ukjent lokasjon).';
+        } else {
+          filterHint.textContent = 'Kunne ikke hente posisjon: ' + (err.message || 'Ukjent feil');
+        }
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    );
   });
 
   window.nodhavnLayer = nodhavnLayer;
