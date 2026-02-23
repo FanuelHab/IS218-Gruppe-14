@@ -62,29 +62,6 @@ A simple, clean web map application built with Leaflet.js that displays an inter
 
 You can easily integrate external geospatial APIs by fetching data and adding it to the map as layers.
 
-### Datakatalog
-
-Oversikt over datasett som brukes i applikasjonen:
-
-| Datasett | Kilde | Format | Bearbeiding |
-|----------|--------|--------|-------------|
-| **Nødhavn (primær)** | Supabase-database (tabell `nodhavn`), prosjekt-URL: `https://gdkqqlbjpfuscqpdribx.supabase.co` | Tabell med kolonner: longitude, latitude, navn, kommune, fylke, kategori, lenke_faktaark, forvaltningsstatus, nodhavnnummer. Leveres via Supabase REST-API. | Hentes med `fetchNodhavnFromSupabase()`, konverteres til GeoJSON FeatureCollection med Point-geometri og properties; vises som sirkelmarkører med farge etter type (sivil/militær/fiskeri), popups med navn og øvrige felter. |
-| **Nødhavn (fallback)** | Lokal fil i prosjektet: `data/nodhavn.geojson` | GeoJSON (FeatureCollection med Point-features og properties: name, type, description). | Brukes når Supabase ikke er tilgjengelig; lastes med `fetch('data/nodhavn.geojson')`, parses som JSON og brukes som GeoJSON-lag med samme styling og popups som primærkilde. |
-| **Kartbakgrunn** | OpenStreetMap / Leaflet tile-tjenere (f.eks. OSM, CartoDB) | Rasterkart (PNG/JPG) via XYZ-tiles (HTTP). | Lastes og vises som bakgrunnskart i Leaflet; ingen videre bearbeiding av data. |
-
-### Dataflyt – fra kilde til kart
-
-- **Nødhavn:** Data kommer fra Supabase-tabellen `nodhavn` (eller fallback fra `data/nodhavn.geojson`). I `js/layers.js` hentes data med `fetchNodhavnFromSupabase()` eller ved feil med `fetch('data/nodhavn.geojson')`. Rader konverteres til GeoJSON FeatureCollection med punktgeometri og properties, deretter legges laget på Leaflet-kartet som sirkelmarkører med farge etter type og popups ved klikk.
-- **Kartbakgrunn:** OpenStreetMap/Leaflet tile-URL brukes direkte av Leaflet; tiles lastes og vises som bakgrunnskart uten egen bearbeiding i appen.
-
-### Forbedringspunkter ved nåværende løsning
-
-- **Tilgjengelighet:** Kart og popups bør støtte tastaturnavigasjon og skjermleser (ARIA, fokusrekkefølge og beskrivende tekster) for å møte WCAG-bedre.
-- **Brukertilbakemelding:** Ved lasting av data eller ved feil mangler det tydelig loading-indikator og feilmeldinger; brukeren vet ikke alltid om noe lastes eller har feilet.
-- **Mobil:** Interaksjon (zoom, pan, klikk på markører) kan forbedres for touch med større treffflater og tydeligere tilstand (f.eks. valgt markør).
-- **Søk og filtrering:** Det finnes ingen søk eller filter på nødhavn (fylke, type, kommune); slike funksjoner ville gjort det enklere å finne relevante havner.
-- **Offline:** Løsningen er avhengig av nett; en enkel service worker og caching av statisk innhold og GeoJSON-fallback kunne gi begrenset bruk uten nett.
-
 ### Technologies Used
 
 - **Leaflet.js 1.9.4**: Interactive map library
