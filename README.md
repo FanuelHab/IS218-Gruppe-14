@@ -1,18 +1,31 @@
 # IS218-Gruppe-14
 
-## Leaflet Web Map Application
+## Prosjektnavn & TL;DR
+**Leaflet Web Map Application** – et enkelt webkart som viser et interaktivt kart med flere bakgrunnskart, eksempelmarkører med popups, og støtte for å vise egne datasett (GeoJSON) og eksterne karttjenester (WMS). Løsningen gjør det lett å utforske et område og skru lag av/på uten installasjon eller byggesteg.
 
-A simple, clean web map application built with Leaflet.js that displays an interactive map with OpenStreetMap tiles.
+## Demo av system
+Legg inn en video eller GIF som viser:
+1) at kartet laster, 2) at du bytter basemap i layer control, og 3) at du slår på/av datasett (GeoJSON/WMS) og åpner en popup.
 
-### Features
+- Video (anbefalt): `docs/demo.mp4`
+- GIF (alternativ): `docs/demo.gif`
 
-- **Interactive Map**: Pan and zoom functionality with OpenStreetMap tiles
-- **Layer Control**: Switch between different base map styles
-- **Popup Examples**: Markers with informative popups
-- **Responsive Design**: Works on desktop and mobile devices
-- **Extensible Structure**: Easy to add GeoJSON data files and external API layers
+> Bytt ut lenkene under når demo-filen er lagt til i repoet.
 
-### Project Structure
+**Demo (GIF):**
+
+![Demo av kartløsningen](docs/demo.gif)
+
+## Teknisk stack
+- **Leaflet**: 1.9.4 (CDN via unpkg)
+- **OpenStreetMap tiles**: standard OSM tile server (via Leaflet)
+- **CartoDB Positron / Light**: Carto tile layer (via Leaflet)
+- **WMS (OGC)**: GeoNorge Topo2 (ekstern karttjeneste)
+- **JavaScript**: Vanilla JS (ingen build step)
+- **HTML/CSS**: HTML5 + CSS3
+- **Kjøring**: Statisk (åpne `index.html`) eller lokal webserver (Python/Node)
+
+## Prosjektstruktur
 
 ```
 .
@@ -23,61 +36,87 @@ A simple, clean web map application built with Leaflet.js that displays an inter
 │   └── js/
 │       └── app.js          # Map initialization and configuration
 ├── data/                   # Directory for GeoJSON files and data
-│   └── README.md          # Guide for adding data
-└── README.md              # This file
+│   └── README.md           # Guide for adding data
+└── README.md               # This file
 ```
 
-### Getting Started
+## Getting started
 
-1. **Open the application**: Simply open `index.html` in a web browser
-   - No build process or server required for basic usage
-   - For development with file loading (GeoJSON), use a local server
+1. **Åpne applikasjonen**: Åpne `index.html` i en nettleser.
+   - Ingen build-prosess eller server er nødvendig for enkel bruk.
+   - For utvikling med filinnlasting (GeoJSON via `fetch`) bør du bruke lokal server.
 
-2. **Using a local server** (optional, for loading GeoJSON data):
+2. **Kjør lokal server** (valgfritt, anbefalt for `fetch` av GeoJSON):
    ```bash
    # Using Python 3
    python -m http.server 8000
-   
+
    # Using Node.js (with http-server installed)
    npx http-server
    ```
-   Then navigate to `http://localhost:8000` in your browser
+   Gå til `http://localhost:8000` i nettleseren.
 
-### Usage
+## Bruk
 
-- **Pan the map**: Click and drag
-- **Zoom**: Use mouse wheel or the +/- buttons
-- **Layer Control**: Use the layers icon in the top-right corner to switch base maps
-- **Popups**: Click on markers to see popup information
+- **Panorer kartet**: klikk og dra
+- **Zoom**: musehjul eller +/- knappene
+- **Layer control**: bruk lag-ikonet (typisk øverst til høyre) for å bytte bakgrunnskart og skru lag av/på
+- **Popups**: klikk på markører/objekter
 
-### Adding Data
+## Datakatalog
+| Datasett | Kilde | Format | Bearbeiding |
+|---|---|---|---|
+| OpenStreetMap basemap | OpenStreetMap (tile provider) | Raster tiles (XYZ) | Ingen lokal bearbeiding; vises direkte som tile layer i Leaflet |
+| CartoDB Light/Positron basemap | CARTO (tile provider) | Raster tiles (XYZ) | Ingen lokal bearbeiding; vises som alternativ basemap |
+| `data/nodhavn.geojson` | Lokal fil i repo (`data/`) | GeoJSON | Lastes med `fetch`, rendres med `L.geoJSON`, evt. styling/popup-binding i `assets/js/app.js` |
+| GeoNorge Topo2 | GeoNorge (OGC WMS) | WMS | Konsumeres direkte som WMS-layer i Leaflet; ingen lokal lagring |
 
-#### GeoJSON Files
+## Arkitekturskisse (dataflyt)
 
-1. Place your GeoJSON files in the `data/` directory
-2. Load them in `assets/js/app.js` using the fetch API
-3. See `data/README.md` for examples
+```text
+           +-------------------+
+           |  Bruker (nettleser)|
+           +---------+---------+
+                     |
+                     v
+            +--------+---------+
+            | index.html       |
+            | - laster Leaflet |
+            | - laster app.js  |
+            +--------+---------+
+                     |
+                     v
+          +----------+-----------+
+          | assets/js/app.js     |
+          | - init map           |
+          | - base layers (OSM,  |
+          |   Carto)             |
+          | - data layers:       |
+          |   * fetch GeoJSON    |
+          |   * WMS (GeoNorge)   |
+          +----------+-----------+
+                     |
+     +---------------+-------------------+
+     |                                   |
+     v                                   v
++----+------------------+      +---------+----------------+
+| Lokal data (data/*.   |      | Ekstern karttjeneste     |
+| geojson)              |      | (GeoNorge WMS Topo2)     |
++-----------------------+      +--------------------------+
+                     |
+                     v
+              +------+------+
+              | Leaflet map |
+              | (render UI) |
+              +-------------+
+```
 
-#### External APIs
+## Refleksjon (forbedringspunkter)
+- **Bedre datadokumentasjon**: Legge inn eksakte kildelenker (URL) og evt. lisensinfo for alle eksterne lag, samt tydelig versjonering av egne datasett.
+- **Feilhåndtering og robusthet**: Vise brukerfeedback ved nettverksfeil (f.eks. hvis GeoJSON/WMS ikke kan lastes) og fallback-løsninger.
+- **Ytelse**: For større GeoJSON kan man bruke generalisering, clustering, eller vector tiles for raskere rendering.
+- **UX og tilgjengelighet**: Forbedre kontrast, tastaturnavigasjon, og tydeligere legend/lag-navn; samt mobiltilpasning av kontroller.
+- **Testing og CI**: Enkle tester (linting) og GitHub Actions for å sikre at statiske filer bygger/kjører uten feil.
 
-You can easily integrate external geospatial APIs by fetching data and adding it to the map as layers.
-
-### Technologies Used
-
-- Mapping: Leaflet 1.9.4 (loaded via CDN, unpkg).
-- Markup & styling: HTML5 and CSS3 (custom css/style.css).
-- Scripting: Vanilla JavaScript (ES5-style), no build step or framework.
-- Data sources: GeoJSON (static file data/nodhavn.geojson); WMS (OGC) from GeoNorge Topo2 as external layer.
-- Base maps: OpenStreetMap and CartoDB Light (tile layers).
-- Delivery: Static files only; run locally with a web server (e.g. npx serve or python -m http.server).
-
-### Browser Support
-
-This application works in all modern browsers that support:
-- ES6 JavaScript
-- CSS3
-- HTML5
-
-### License
-
+## License
 See LICENSE file for details.
