@@ -64,17 +64,12 @@ You can easily integrate external geospatial APIs by fetching data and adding it
 
 ### Technologies Used
 
-Area	Technology	Version / note
-Mapping	Leaflet	1.9.4 (CDN, unpkg)
-Languages	HTML5	—
-CSS3	Custom css/style.css
-JavaScript (vanilla)	ES5-style, no build step
-Data sources	GeoJSON	Static file (data/nodhavn.geojson)
-WMS (OGC)	GeoNorge Topo2 (external layer)
-Base maps	OpenStreetMap	Tile layer
-CartoDB Light	Tile layer
-Delivery	Static files	No bundler; served via local web server (e.g. npx serve or python -m http.server)
-Summary: Vanilla HTML/CSS/JS with Leaflet for the map; GeoJSON and WMS as data sources; no front-end framework or build tooling.
+Mapping: Leaflet 1.9.4 (loaded via CDN, unpkg).
+Markup & styling: HTML5 and CSS3 (custom css/style.css).
+Scripting: Vanilla JavaScript (ES5-style), no build step or framework.
+Data sources: GeoJSON (static file data/nodhavn.geojson); WMS (OGC) from GeoNorge Topo2 as external layer.
+Base maps: OpenStreetMap and CartoDB Light (tile layers).
+Delivery: Static files only; run locally with a web server (e.g. npx serve or python -m http.server).
 
 ### Browser Support
 
