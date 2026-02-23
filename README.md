@@ -1,7 +1,7 @@
 # IS218-Gruppe-14
 
 ## Prosjektnavn & TL;DR
-**Leaflet Web Map Application** – et enkelt webkart som viser et interaktivt kart med flere bakgrunnskart, eksempelmarkører med popups, og støtte for å vise egne datasett (GeoJSON) og eksterne karttjenester (WMS). Løsningen gjør det lett å utforske et område og skru lag av/på uten installasjon eller byggesteg.
+**Nødhavn i Norge** – et enkelt webkart som viser et interaktivt kart med flere bakgrunnskart, eksempelmarkører med popups, og støtte for å vise egne datasett (GeoJSON) og eksterne karttjenester (WMS). Løsningen gjør det lett å utforske et område og skru lag av/på uten installasjon eller byggesteg.
 
 ## Demo av system
 Legg inn en video eller GIF som viser:
