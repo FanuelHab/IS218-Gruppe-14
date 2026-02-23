@@ -4,7 +4,11 @@
 Nødhavn i Norge – et webkart som lar Forsvaret (og andre beredskapsaktører) raskt finne nærmeste nødhavn ved å vise nødhavner på kart og gi enkel søk/valg av posisjon med avstand til nærmeste havn.
 
 ## GIF av systemet
-![NdhavniNorge-Finnnrmestehavn-GoogleChrome2026-02-2318-36-45-ezgif com-video-to-gif-converter](https://github.com/user-attachments/assets/1c21f08b-ea7a-4556-8557-ba171988fd6a)
+
+
+https://github.com/user-attachments/assets/0cc9151d-967e-4716-b5b5-656082a2f157
+
+
 
 
 
