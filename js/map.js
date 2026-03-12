@@ -63,45 +63,79 @@
   }
 
   function applySpatialFilter(clickLatLng) {
-    var geojson = window.nodhavnGeoJSON;
-    if (!geojson || !geojson.features || geojson.features.length === 0) {
-      filterHint.textContent = 'Data lastes fortsatt. Prøv igjen om et øyeblikk.';
-      return;
-    }
-    var km = filterDistanceKm;
     var clickLat = clickLatLng.lat;
     var clickLng = clickLatLng.lng;
-    var within = geojson.features.filter(function (f) {
-      var coords = f.geometry && f.geometry.coordinates;
-      if (!coords || coords.length < 2) return false;
-      var d = getDistanceKm(clickLat, clickLng, coords[1], coords[0]);
-      return d <= km;
-    });
-    removeFilterOverlay();
-    nodhavnLayer.clearLayers();
-    nodhavnLayer.addData({ type: 'FeatureCollection', features: within });
-    nodhavnLayer.addTo(map);
-    var group = L.layerGroup();
-    var circle = L.circle(clickLatLng, {
-      radius: km * 1000,
-      color: '#0066cc',
-      fillColor: '#0066cc',
-      fillOpacity: 0.15,
-      weight: 2,
-      interactive: false
-    });
-    var marker = L.marker(clickLatLng).bindPopup('Valgt punkt<br>Avstand: ' + km + ' km');
-    group.addLayer(circle);
-    group.addLayer(marker);
-    group.addTo(map);
-    filterRadiusLayer = group;
-    activeFilterCenter = clickLatLng;
-    var n = within.length;
-    filterHint.textContent = n + ' nødhavn innenfor ' + km + ' km. Klikk på en markør for å se detaljer.';
-    filterHint.classList.add('has-results');
-    if (within.length > 0 && nodhavnLayer.getBounds().isValid()) {
-      map.fitBounds(nodhavnLayer.getBounds().pad(0.15));
+    var km = filterDistanceKm;
+    var distanceMeters = km * 1000;
+    var client = window.supabase;
+
+    if (!client) {
+      filterHint.textContent = 'Supabase er ikke konfigurert. Bruk "Vis alle nødhavner" og prøv igjen.';
+      return;
     }
+
+    filterHint.textContent = 'Henter nødhavn fra databasen...';
+    client
+      .rpc('get_nodhavn_within_distance', {
+        click_lng: clickLng,
+        click_lat: clickLat,
+        distance_meters: distanceMeters
+      })
+      .then(function (result) {
+        if (result.error) {
+          filterHint.textContent = 'Feil: ' + (result.error.message || 'Kunne ikke hente data.');
+          return;
+        }
+        var rows = result.data || [];
+        var features = rows.map(function (r) {
+          var lng = Number(r.longitude);
+          var latVal = Number(r.latitude);
+          return {
+            type: 'Feature',
+            properties: {
+              name: r.navn,
+              navn: r.navn,
+              kommune: r.kommune,
+              fylke: r.fylke,
+              type: r.kategori != null ? String(r.kategori) : '',
+              kategori: r.kategori,
+              lenke_faktaark: r.lenke_faktaark,
+              forvaltningsstatus: r.forvaltningsstatus,
+              nodhavnnummer: r.nodhavnnummer
+            },
+            geometry: { type: 'Point', coordinates: [lng, latVal] }
+          };
+        });
+        var within = features;
+        removeFilterOverlay();
+        nodhavnLayer.clearLayers();
+        nodhavnLayer.addData({ type: 'FeatureCollection', features: within });
+        nodhavnLayer.addTo(map);
+        var group = L.layerGroup();
+        var circle = L.circle(clickLatLng, {
+          radius: km * 1000,
+          color: '#0066cc',
+          fillColor: '#0066cc',
+          fillOpacity: 0.15,
+          weight: 2,
+          interactive: false
+        });
+        var marker = L.marker(clickLatLng).bindPopup('Valgt punkt<br>Avstand: ' + km + ' km');
+        group.addLayer(circle);
+        group.addLayer(marker);
+        group.addTo(map);
+        filterRadiusLayer = group;
+        activeFilterCenter = clickLatLng;
+        var n = within.length;
+        filterHint.textContent = n + ' nødhavn innenfor ' + km + ' km. Klikk på en markør for å se detaljer.';
+        filterHint.classList.add('has-results');
+        if (within.length > 0 && nodhavnLayer.getBounds().isValid()) {
+          map.fitBounds(nodhavnLayer.getBounds().pad(0.15));
+        }
+      })
+      .catch(function (err) {
+        filterHint.textContent = 'Kunne ikke hente nødhavn: ' + (err.message || 'Ukjent feil');
+      });
   }
 
   function clearSpatialFilter() {
