@@ -117,11 +117,13 @@ class MapApp {
 
     const rounded = distanceKm.toFixed(2);
 
+    const category = feature.properties.kategori || '–';
+
     this.updateHint(`Nærmeste: ${navn} – ${rounded} km`);
 
     const clickMarker = L.marker(latlng)
       .addTo(this.map)
-      .bindPopup(`<b>${navn}</b><br>${rounded} km`)
+      .bindPopup(`<b>${navn}</b><br>${rounded} km<br>Kategori: ${category}`)
       .openPopup();
 
     const [lng, lat] = feature.geometry.coordinates;
