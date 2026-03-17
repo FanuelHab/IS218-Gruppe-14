@@ -136,7 +136,7 @@ class MapApp {
     this.map.fitBounds(line.getBounds().pad(0.3));
   }
 
-  // ---------------- FILTER ---------------
+  // ---------------- FILTER --------------
   applySpatialFilter(latlng) {
     console.log("FILTER CLICK", latlng);
 
