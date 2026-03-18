@@ -8,6 +8,7 @@ class MapApp {
 
     this.filterRadiusLayer = null;
     this.closestResultLayer = null;
+    this.currentMapClickHandler = null;
 
     this.map = this.initMap();
     this.baseLayers = this.initBaseLayers();
@@ -20,11 +21,13 @@ class MapApp {
 
   // ---------------- MAP ----------------
   initMap() {
-    const map = L.map('map').setView(this.NORWAY_CENTER, this.DEFAULT_ZOOM);
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap'
-    }).addTo(map);
+    const map = L.map('map', {
+      wheelPxPerZoomLevel: 120,
+      wheelDebounceTime: 80,
+      zoomSnap: 1,
+      zoomDelta: 1,
+      zoomControl: false
+    }).setView(this.NORWAY_CENTER, this.DEFAULT_ZOOM);
 
     L.control.zoom({ position: 'bottomright' }).addTo(map);
 
@@ -32,18 +35,46 @@ class MapApp {
   }
 
   initBaseLayers() {
-    return {};
+    const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap'
+    });
+
+    const carto = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      attribution: '© OpenStreetMap, © CARTO'
+    });
+
+    // OSM is already added in initMap; keep references for layer control.
+    return {
+      'OpenStreetMap': osm,
+      'CartoDB Lys': carto
+    };
   }
 
   initLayerControls() {
+    // Show default baselayer (OSM)
+    if (this.baseLayers && this.baseLayers['OpenStreetMap']) {
+      this.baseLayers['OpenStreetMap'].addTo(this.map);
+    }
+
     this.nodhavnLayer.addTo(this.map);
+
+    const overlays = {
+      'Nødhavn (søkeresultat)': this.nodhavnLayer,
+      'Eksternt lag (OGC)': this.externalLayer
+    };
+
+    L.control.layers(this.baseLayers, overlays).addTo(this.map);
   }
 
   // ---------------- SAFE CLICK HANDLER ----------------
   setMapClickHandler(handler) {
-    this.map.off('click');
-    this.map.on('click', handler);
-    console.log("Click handler set");
+    if (this.currentMapClickHandler) {
+      this.map.off('click', this.currentMapClickHandler);
+    }
+    this.currentMapClickHandler = handler;
+    if (handler) {
+      this.map.on('click', handler);
+    }
   }
 
   // ---------------- HAVERSINE ----------------
@@ -101,8 +132,6 @@ class MapApp {
   }
 
   handleClosestClick(latlng) {
-    console.log("MAP CLICKED", latlng);
-
     this.clearAllOverlays();
 
     const result = this.findClosestHarbor(latlng);
@@ -138,27 +167,84 @@ class MapApp {
 
   // ---------------- FILTER --------------
   applySpatialFilter(latlng) {
-    console.log("FILTER CLICK", latlng);
-
     const client = window.supabase;
 
     if (!client) {
-      this.updateHint('Supabase mangler');
+      this.updateHint('Supabase er ikke konfigurert. Bruk "Vis alle nødhavner" og prøv igjen.');
       return;
     }
 
-    client.rpc('get_nodhavn_within_distance', {
+    this.updateHint('Henter nødhavn fra databasen...');
+
+    client
+      .rpc('get_nodhavn_within_distance', {
       click_lng: latlng.lng,
       click_lat: latlng.lat,
       distance_meters: this.filterDistanceKm * 1000
     })
     .then(result => {
       if (result.error) {
-        this.updateHint(result.error.message);
+        this.updateHint(`Feil: ${result.error.message || 'Kunne ikke hente data.'}`);
         return;
       }
 
-      this.updateHint(`${result.data.length} funnet`);
+      const rows = result.data || [];
+      const features = rows.map(r => {
+        const lng = Number(r.longitude);
+        const latVal = Number(r.latitude);
+
+        return {
+          type: 'Feature',
+          properties: {
+            name: r.navn,
+            navn: r.navn,
+            kommune: r.kommune,
+            fylke: r.fylke,
+            type: r.kategori != null ? String(r.kategori) : '',
+            kategori: r.kategori,
+            lenke_faktaark: r.lenke_faktaark,
+            forvaltningsstatus: r.forvaltningsstatus,
+            nodhavnnummer: r.nodhavnnummer
+          },
+          geometry: { type: 'Point', coordinates: [lng, latVal] }
+        };
+      });
+
+      // Update layer to only show filtered results
+      this.clearAllOverlays();
+      this.nodhavnLayer.clearLayers();
+      this.nodhavnLayer.addData({ type: 'FeatureCollection', features });
+      this.nodhavnLayer.addTo(this.map);
+
+      // Draw radius circle + selected point marker
+      const group = L.layerGroup();
+      const circle = L.circle(latlng, {
+        radius: this.filterDistanceKm * 1000,
+        color: '#0066cc',
+        fillColor: '#0066cc',
+        fillOpacity: 0.15,
+        weight: 2,
+        interactive: false
+      });
+      const marker = L.marker(latlng).bindPopup(
+        `Valgt punkt<br>Avstand: ${this.filterDistanceKm} km`
+      );
+      group.addLayer(circle);
+      group.addLayer(marker);
+      group.addTo(this.map);
+      this.filterRadiusLayer = group;
+      this.activeFilterCenter = latlng;
+
+      const n = features.length;
+      this.setHintHasResults(n > 0);
+      this.updateHint(`${n} nødhavn innenfor ${this.filterDistanceKm} km. Klikk på en markør for å se detaljer.`);
+
+      if (n > 0 && this.nodhavnLayer.getBounds().isValid()) {
+        this.map.fitBounds(this.nodhavnLayer.getBounds().pad(0.15));
+      }
+    })
+    .catch(err => {
+      this.updateHint(`Kunne ikke hente nødhavn: ${err.message || 'Ukjent feil'}`);
     });
   }
 
@@ -175,6 +261,13 @@ class MapApp {
     }
   }
 
+  clearSpatialFilter() {
+    this.clearAllOverlays();
+    this.activeFilterCenter = null;
+    this.nodhavnLayer.clearLayers();
+    this.map.removeLayer(this.nodhavnLayer);
+  }
+
   showAllNodhavn() {
     const geojson = window.nodhavnGeoJSON;
 
@@ -184,11 +277,14 @@ class MapApp {
     }
 
     this.clearAllOverlays();
+    this.activeFilterCenter = null;
 
     this.nodhavnLayer.clearLayers();
     this.nodhavnLayer.addData(geojson).addTo(this.map);
 
-    this.updateHint('Viser alle');
+    this.setMapClickHandler(null);
+    this.setHintHasResults(false);
+    this.updateHint('Alle nødhavn i Norge vises. Bruk søkefunksjonen for å filtrere.');
   }
 
   // ---------------- UI ----------------
@@ -197,26 +293,100 @@ class MapApp {
     this.closestBtn = document.getElementById('closest-btn');
     this.resetBtn = document.getElementById('reset-btn');
     this.filterHint = document.getElementById('filter-hint');
+    this.filterDistanceInput = document.getElementById('filter-distance');
+    this.filterDistanceValue = document.getElementById('filter-distance-value');
+    this.usePositionBtn = document.getElementById('use-position-btn');
+    this.panelToggle = document.getElementById('panel-toggle');
 
-    if (!this.closestBtn) {
-      console.error("closest-btn NOT FOUND");
+    if (this.panelToggle) {
+      this.panelToggle.addEventListener('click', () => {
+        const panel = document.getElementById('search-panel');
+        if (panel) panel.classList.toggle('collapsed');
+      });
     }
 
-    this.closestBtn.addEventListener('click', () => {
-      console.log("Closest button clicked");
+    if (this.filterDistanceInput) {
+      const updateDistanceDisplay = () => {
+        if (this.filterDistanceValue) this.filterDistanceValue.textContent = this.filterDistanceInput.value;
+      };
 
-      this.updateHint('Klikk på kartet');
+      this.filterDistanceInput.addEventListener('input', () => {
+        updateDistanceDisplay();
+        this.filterDistanceKm = Number(this.filterDistanceInput.value) || 100;
+        if (this.activeFilterCenter) {
+          this.applySpatialFilter(this.activeFilterCenter);
+        }
+      });
 
-      this.setMapClickHandler((e) => this.handleClosestClick(e.latlng));
-    });
+      updateDistanceDisplay();
+      this.filterDistanceKm = Number(this.filterDistanceInput.value) || 100;
+    }
 
-    this.filterBtn.addEventListener('click', () => {
-      console.log("Filter button clicked");
+    if (this.closestBtn) {
+      this.closestBtn.addEventListener('click', () => {
+        this.setHintHasResults(false);
+        this.updateHint('Klikk på kartet for å finne nærmeste nødhavn.');
+        this.setMapClickHandler((e) => this.handleClosestClick(e.latlng));
+      });
+    }
 
-      this.setMapClickHandler((e) => this.applySpatialFilter(e.latlng));
-    });
+    if (this.filterBtn) {
+      this.filterBtn.addEventListener('click', () => {
+        this.filterDistanceKm = Number(this.filterDistanceInput?.value) || this.filterDistanceKm || 100;
 
-    this.resetBtn.addEventListener('click', () => this.showAllNodhavn());
+        this.clearSpatialFilter();
+        this.setHintHasResults(false);
+        this.updateHint(`Klikk på kartet for å finne nødhavner innenfor ${this.filterDistanceKm} km.`);
+
+        this.setMapClickHandler((e) => this.applySpatialFilter(e.latlng));
+      });
+    }
+
+    if (this.resetBtn) {
+      this.resetBtn.addEventListener('click', () => this.showAllNodhavn());
+    }
+
+    if (this.usePositionBtn) {
+      this.usePositionBtn.addEventListener('click', () => {
+        this.setMapClickHandler(null);
+
+        if (!navigator.geolocation) {
+          this.updateHint('Støtte for geolokasjon er ikke tilgjengelig i nettleseren din.');
+          return;
+        }
+
+        this.updateHint('Henter posisjon...');
+
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            const userLatLng = { lat, lng };
+
+            // Keep the same default behavior as before
+            this.filterDistanceKm = Number(this.filterDistanceInput?.value) || 100;
+            this.applySpatialFilter(userLatLng);
+            this.map.setView([lat, lng], 8);
+          },
+          (err) => {
+            if (err.code === 1) {
+              this.updateHint('Posisjon avvist. Gi nettleseren tillatelse til å bruke posisjonen din.');
+            } else if (err.code === 2) {
+              this.updateHint('Kunne ikke bestemme posisjon (ukjent lokasjon).');
+            } else {
+              this.updateHint(`Kunne ikke hente posisjon: ${err.message || 'Ukjent feil'}`);
+            }
+          },
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+        );
+      });
+    }
+  }
+
+  setHintHasResults(hasResults) {
+    if (!this.filterHint) return;
+    if (hasResults) this.filterHint.classList.add('has-results');
+    else this.filterHint.classList.remove('has-results');
   }
 
   updateHint(text) {
