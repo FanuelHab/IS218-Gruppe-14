@@ -17,4 +17,4 @@ print("CRS:", nodhavn.crs)
 
 - `nodhavn.info()` prints a summary of the dataframe, including the number of rows, column names and data types, and memory usage. This helps verify the data structure and detect any unexpected nulls or types.
 - Displaying `nodhavn.head()` again gives a quick peek at the first few features, reaffirming the dataset's contents.
-- Printing the `
+- Printing the the table
