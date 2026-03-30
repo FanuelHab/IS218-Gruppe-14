@@ -6,7 +6,7 @@
 
 ## Video av systemet
 
-![Demo video](https://raw.githubusercontent.com/FanuelHab/IS218-Gruppe-14/main/assets/Gif/ProsjektGif.mp4)
+[▶ Watch demo video](https://raw.githubusercontent.com/FanuelHab/IS218-Gruppe-14/main/assets/Gif/ProsjektGif.mp4)
 
 ## Oppgave 2: Beskrivelse av utvidelsen (romlig funksjonalitet)
 
