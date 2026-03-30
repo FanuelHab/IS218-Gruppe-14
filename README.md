@@ -8,6 +8,7 @@
 
 https://github.com/user-attachments/assets/0cc9151d-967e-4716-b5b5-656082a2f157
 
+https://github.com/FanuelHab/IS218-Gruppe-14/releases/download/V1.0/ProsjektGif.mp4
 ## Oppgave 2: Beskrivelse av utvidelsen (romlig funksjonalitet)
 
 Webkartet er utvidet med **romlig analyse knyttet til brukerinteraksjon** og tydelig **visuell tilbakemelding** i kartet.
