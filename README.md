@@ -20,7 +20,7 @@ Webkartet er utvidet med **romlig analyse knyttet til brukerinteraksjon** og tyd
 - Funksjonen kjører en **romlig filtrering i databasen** (PostGIS), slik at kun nødhavn som ligger innenfor den angitte avstanden fra klikkpunktet returneres. Klienten bygger GeoJSON av resultatsettet og oppdaterer kartlaget.
 - **GPS-posisjon:** Med «Bruk posisjonen min» brukes samme RPC med **brukerens koordinater** som sentrum og standard radius (slik det er satt i grensesnittet), slik at analysen også er **dynamisk** ut fra faktisk posisjon.
 
-Dette oppfyller kravet om at kartet henter data **basert på brukerinteraksjon** og at **ST-funksjoner** brukes via Supabase (selve SQL-en ligger i Supabase; se egen **SQL-snippet** i README eller i prosjektbesvarelsen).
+Dette oppfyller kravet om at kartet henter data **basert på brukerinteraksjon** og at **ST-funksjoner** brukes via Supabase. Se **[SQL-Snippet](#sql-snippet)** nedenfor for funksjonen i databasen.
 
 ### 2. Visuell tilbakemelding (grensesnitt)
 
@@ -35,6 +35,44 @@ Statusfeltet i panelet oppdateres med antall treff innenfor valgt avstand.
 ### 3. Tilleggsutvidelse: Nærmeste nødhavn langs sjøvei
 
 Uoverfor database-filtrering på avstand er det lagt til **nærmeste nødhavn etter sjøvei** (ikke luftlinje): ved klikk sendes posisjon og havneliste til en **Python-tjeneste** (biblioteket *searoute*) via Node-proxy. Dette gir **analytisk avstand langs maritimt nettverk** og tegner rute og markører; det er et supplement til Spatial SQL-delen og krever egen backend (`npm run dev`). Sjørute er ment for visualisering, ikke offisiell navigasjon.
+
+## SQL-Snippet
+
+Nedenfor er kjernen av den lagrede funksjonen **`get_nodhavn_within_distance`** i Supabase/PostGIS. Parametrene `click_lng`, `click_lat` og `distance_meters` sendes fra klienten (`assets/js/map.js` via `.rpc('get_nodhavn_within_distance', …)`).
+
+**`ST_DWithin`** brukes i `WHERE` for å hente alle nødhavn innenfor radius (meter, geography). **`ST_Distance`** brukes i `SELECT` og `ORDER BY` for å vise og sortere etter avstand fra klikkpunktet.
+
+```sql
+SELECT
+  n.id,
+  n.longitude,
+  n.latitude,
+  n.navn,
+  n.kommune,
+  n.fylke,
+  n.kategori,
+  n.lenke_faktaark,
+  n.forvaltningsstatus,
+  n.nodhavnnummer,
+  ST_Distance(
+    n.geom,
+    ST_SetSRID(ST_MakePoint(click_lng, click_lat), 4326)::geography
+  ) AS distance_m
+FROM public.nodhavn n
+WHERE n.geom IS NOT NULL
+  AND ST_DWithin(
+    n.geom,
+    ST_SetSRID(ST_MakePoint(click_lng, click_lat), 4326)::geography,
+    distance_meters
+  )
+ORDER BY distance_m;
+```
+
+### `ST_Distance` (PostGIS-signatur i databasen)
+
+```sql
+SELECT public.ST_Distance($1::public.geometry, $2::public.geometry);
+```
 
 ## Tech stack
 
