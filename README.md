@@ -6,9 +6,7 @@
 
 ## Video av systemet
 
-<video controls autoplay loop muted playsinline width="600">
-  <source src="https://raw.githubusercontent.com/FanuelHab/IS218-Gruppe-14/main/assets/Gif/ProsjektGif.mp4" type="video/mp4">
-</video>
+[![Demo](https://img.youtube.com/vi/dummy.jpg)](https://raw.githubusercontent.com/FanuelHab/IS218-Gruppe-14/main/assets/Gif/ProsjektGif.mp4)
 
 ## Oppgave 2: Beskrivelse av utvidelsen (romlig funksjonalitet)
 
