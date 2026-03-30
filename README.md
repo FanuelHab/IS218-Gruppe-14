@@ -1,137 +1,194 @@
 # IS218-Gruppe-14
 
 ## Prosjektnavn & TL;DR
-**Nødhavn i Norge** — Et webkart for Forsvaret og andre beredskapsaktører: vis nødhavn på kart, bruk egen posisjon eller velg et punkt med radius, og finn nærmeste havn raskt.
+
+**Nødhavn i Norge** — Webkart for Forsvaret og andre beredskapsaktører: vis nødhavn, bruk egen posisjon eller velg punkt med radius, og finn **nærmeste havn langs sjøvei** (ikke luftlinje) når backend for sjøroute kjører.
 
 ## Video av systemet
 
-
 https://github.com/user-attachments/assets/0cc9151d-967e-4716-b5b5-656082a2f157
 
+## Oppgave 2: Beskrivelse av utvidelsen (romlig funksjonalitet)
 
+Webkartet er utvidet med **romlig analyse knyttet til brukerinteraksjon** og tydelig **visuell tilbakemelding** i kartet.
 
+### 1. Dynamisk henting ved klikk og posisjon (Supabase / Spatial SQL)
 
+- **Radius rundt valgt punkt:** Brukeren velger en avstand (10–500 km) med glidebryter, aktiverer «Finn nødhavner rundt punkt» og **klikker på kartet**. Applikasjonen sender da **klikkets koordinater** (`click_lng`, `click_lat`) og **søkeradius i meter** (`distance_meters`) til en **lagret funksjon i Supabase**: `get_nodhavn_within_distance`.
+- Funksjonen kjører en **romlig filtrering i databasen** (PostGIS), slik at kun nødhavn som ligger innenfor den angitte avstanden fra klikkpunktet returneres. Klienten bygger GeoJSON av resultatsettet og oppdaterer kartlaget.
+- **GPS-posisjon:** Med «Bruk posisjonen min» brukes samme RPC med **brukerens koordinater** som sentrum og standard radius (slik det er satt i grensesnittet), slik at analysen også er **dynamisk** ut fra faktisk posisjon.
 
-## Teknisk stack
-- **Leaflet**: 1.9.4 (CDN via unpkg)
-- **Supabase**: @supabase/supabase-js (CDN) – henting av nødhavndata fra databasen
-- **OpenStreetMap / CartoDB**: Bakgrunnskart (OSM, Carto Lys) via Leaflet
-- **WMS (OGC)**: GeoNorge Topo2 (ekstern karttjeneste, valgfritt lag)
-- **JavaScript**: Vanilla JS, modulær oppbygning (ingen build step)
-- **HTML/CSS**: HTML5 + CSS3 (designsystem med CSS-variabler, DM Sans)
-- **Kjøring**: Statisk (åpne `index.html`) eller lokal webserver (Python/Node)
+Dette oppfyller kravet om at kartet henter data **basert på brukerinteraksjon** og at **ST-funksjoner** brukes via Supabase (selve SQL-en ligger i Supabase; se egen **SQL-snippet** i README eller i prosjektbesvarelsen).
+
+### 2. Visuell tilbakemelding (grensesnitt)
+
+Etter en vellykket romlig spørring:
+
+- **Markør** på det valgte punktet (klikk eller posisjon).
+- **Sirkel** som viser søkeradiusen tydelig i kartet.
+- **Nødhavn-laget** viser **kun treffene** innenfor radius (øvrige skjules i denne visningen), med samme popup-styling som ellers, slik at resultatene er **tydelig uthevet** i forhold til et generelt oversiktskart.
+
+Statusfeltet i panelet oppdateres med antall treff innenfor valgt avstand.
+
+### 3. Tilleggsutvidelse: Nærmeste nødhavn langs sjøvei
+
+Uoverfor database-filtrering på avstand er det lagt til **nærmeste nødhavn etter sjøvei** (ikke luftlinje): ved klikk sendes posisjon og havneliste til en **Python-tjeneste** (biblioteket *searoute*) via Node-proxy. Dette gir **analytisk avstand langs maritimt nettverk** og tegner rute og markører; det er et supplement til Spatial SQL-delen og krever egen backend (`npm run dev`). Sjørute er ment for visualisering, ikke offisiell navigasjon.
+
+## Tech stack
+
+| Lag | Teknologi |
+|-----|-----------|
+| **Kart** | Leaflet 1.9.4 (CDN), OpenStreetMap / CartoDB (fliser), valgfritt WMS (GeoNorge Topo2) |
+| **Frontend** | Vanilla JS (`assets/js/`), HTML5, CSS (`css/style.css`), DM Sans |
+| **Data** | Supabase (`@supabase/supabase-js` via CDN) med fallback til `data/nodhavn.geojson` |
+| **Sjøroute** | Python [searoute](https://pypi.org/project/searoute/) (maritimt nettverk), **FastAPI** + **uvicorn** (`searoute_service/`) |
+| **API-proxy** | **Node** (`server/server.mjs`, Express) — statiske filer + `/api/*` → Python |
+| **Dev** | `npm run dev` ( `concurrently` : uvicorn port **8001** + Node port **3000** ), valgfritt VS Code-oppgave ved mappeåpning |
+
+**Merk:** Searoute er ment for **visualisering**, ikke offisiell navigasjon. Avstander følger bibliotekets sjønettverk.
+
+## Arkitektur
+
+```
+Nettleser (Leaflet)
+    → POST /api/closest-port  (eller /api/route)
+        → Node Express :3000  (proxy, CORS, statiske filer)
+            → Python FastAPI :8001  (searoute)
+```
+
+- **Nærmeste havn:** Klienten sender klikk-posisjon og alle havn (fra `window.nodhavnGeoJSON`). Python beregner korteste **sjøvei** per kandidat og velger minste avstand.
+- **Visning:** Start- og sluttmarkør settes til **eksakt klikk** og **eksakt havn-koordinat** fra GeoJSON. Linjens endepunkter justeres til disse; midtpunkt kommer fra searoute (rute på sjønettet).
+- **Live Server (VS Code):** Siden kan kjøre på f.eks. port 5500; API ligger på 3000. `assets/js/map.js` bruker full URL til `localhost:3000` når siden ikke allerede er på port 3000. Overstyring: `window.__SEAROUTE_API_BASE__`.
 
 ## Prosjektstruktur
 
 ```
 .
-├── index.html              # Hovedside: kart, søkepanel, legend
+├── index.html
 ├── css/
-│   └── style.css           # Stiler: søkepanel, knapper, popups, responsivt
-├── js/
-│   ├── supabase.js         # Supabase-klient (URL + anon key)
-│   ├── popups.js           # Popup-innhold fra feature properties
-│   ├── layers.js           # Nødhavn-lag (Supabase/GeoJSON), eksternt WMS-lag, styling
-│   └── map.js              # Kartoppsett, lagkontroll, posisjon/søk, avstandsfilter
+│   └── style.css
+├── assets/js/
+│   ├── supabase.js         # Supabase-klient (window.supabase)
+│   ├── popups.js           # Popup-innhold for nødhavn
+│   ├── layers.js           # GeoJSON-lag, Supabase/fallback, WMS
+│   └── map.js              # Kart, filter, «nærmeste nødhavn» (sjøroute-API)
 ├── data/
-│   ├── nodhavn.geojson     # Fallback nødhavndata (ved Supabase-feil)
-│   ├── nodhavn.csv         # Rådata
-│   └── README.md           # Veiledning for data
-└── README.md               # Denne filen
+│   ├── nodhavn.geojson
+│   ├── nodhavn_import.csv
+│   └── README.md
+├── searoute_service/
+│   ├── main.py             # FastAPI: /route, /closest-port, /health
+│   └── requirements.txt
+├── server/
+│   ├── server.mjs          # Express: statikk + proxy til Python
+│   └── package.json
+├── package.json            # workspaces: server, script "dev" / "start"
+├── .vscode/
+│   ├── tasks.json          # Valgfri auto-start: npm run dev ved mappeåpning
+│   └── settings.json       # task.allowAutomaticTasks
+└── README.md
 ```
 
-### Arkitektur (JavaScript)
-
-Scriptene lastes i rekkefølge i `index.html` og bygger på globale variabler der det trengs:
+### Frontend (rekkefølge i `index.html`)
 
 | Fil | Ansvar |
 |-----|--------|
-| **supabase.js** | Oppretter Supabase-klient (`window.supabase`); må kjøre før layers.js. |
-| **popups.js** | `makePopupContent(properties)` og `escapeHtml()` – brukes av layers.js til popup-innhold. |
-| **layers.js** | `fetchNodhavnFromSupabase()`, `createNodhavnGeoJSONLayer()`, `createExternalLayer()`, `getColorByType()`. Setter `window.nodhavnGeoJSON` når data er lastet. |
-| **map.js** | Oppretter Leaflet-kartet, base layers, overlays, lagkontroll. Håndterer avstandsslider, «Bruk posisjonen min», «Finn nødhavner rundt punkt», «Vis alle nødhavner», panel-toggle. Eksponerer `window.map` og `window.nodhavnLayer`. |
+| **supabase.js** | Oppretter `window.supabase`. |
+| **popups.js** | `makePopupContent`, `escapeHtml`. |
+| **layers.js** | Henter nødhavn, setter `window.nodhavnGeoJSON`, lag og styling. |
+| **map.js** | Kart, lagkontroll, radius-filter, «nærmeste nødhavn» (kall til `/api/closest-port`), panel-UI. |
+
+### Backend (sjøroute)
+
+| Tjeneste | Port | Innhold |
+|----------|------|---------|
+| **Node** (`npm run start` eller `node server/server.mjs`) | 3000 ( `PORT` ) | Statiske filer fra prosjektrot, `POST /api/route`, `POST /api/closest-port`, `GET /api/health` |
+| **Python** (`uvicorn searoute_service.main:app`) | 8001 | `POST /route`, `POST /closest-port`, `GET /health` — `SEAROUTE_URL` peker hit fra Node |
+
+Miljøvariabel **`SEAROUTE_URL`** (på Node, standard `http://127.0.0.1:8001`) endrer hvor proxyen sender Python-kall.
 
 ## Getting started
 
-1. **Åpne applikasjonen**: Åpne `index.html` i en nettleser.
-   - Ingen build-prosess eller server er nødvendig for enkel bruk.
-   - For utvikling med filinnlasting (GeoJSON via `fetch`) bør du bruke lokal server.
+### Uten sjøroute (kun kart og Supabase/geojson)
 
-2. **Kjør lokal server** (valgfritt, anbefalt for `fetch` av GeoJSON):
+1. Bruk en **lokal HTTP-server** (nettleseren blokkerer ofte `fetch` til GeoJSON fra `file://`).
    ```bash
-   # Using Python 3
    python -m http.server 8000
-
-   # Using Node.js (with http-server installed)
-   npx http-server
    ```
-   Åpne deretter `http://localhost:8000` i nettleseren.
+   Åpne `http://localhost:8000` (tilpass port).
 
-### Usage
+2. Fyll inn Supabase URL og anon key i `assets/js/supabase.js` hvis du ønsker data fra database; ellers brukes `data/nodhavn.geojson`.
 
-- **Kart**: Dra for å panne, bruk scroll eller +/- for zoom. Lagkontroll (øverst til høyre) bytter bakgrunnskart (OpenStreetMap / CartoDB Lys) og overlays (Nødhavn, Eksternt lag).
-- **Søkepanel (venstre)**:
-  - **Bruk posisjonen min**: Finner nødhavn innen 100 km fra din GPS-posisjon (krever tillatelse).
-  - **Velg punkt på kartet**: Still avstand (10–500 km) med glidebryteren, klikk «Finn nødhavner rundt punkt», deretter på kartet. Kun nødhavn innenfor radius vises; sirkel og valgt punkt markeres.
-  - **Vis alle nødhavner**: Nullstiller filter og viser alle nødhavn igjen.
-- **Legend (i-knapp)**: Forklaring på fargene – K1 (største fartøy), K2 (>5000 BT), K3 (mindre fartøy), annen/ukjent.
-- **Panel**: Pil-knappen på panelet lukker/åpner søkepanelet.
-- **Popups**: Klikk på en nødhavn-markør for å se navn, sted, kategori og evt. lenke til faktaark.
+### Med sjøroute («nærmeste nødhavn» langs sjø)
 
-### Adding Data
+1. **Python-avhengigheter**
+   ```bash
+   python -m pip install -r searoute_service/requirements.txt
+   ```
 
-#### GeoJSON / nødhavndata
+2. **Node-avhengigheter** (prosjektrot — `workspaces` inkluderer `server/`)
+   ```bash
+   npm install
+   ```
 
-1. Legg GeoJSON-filer i `data/` (f.eks. `data/nodhavn.geojson` som fallback).
-2. Nødhavn lastes i `js/layers.js` via Supabase (`fetchNodhavnFromSupabase`) med fallback til `fetch('data/nodhavn.geojson')`.
-3. Se `data/README.md` for eksempler på struktur.
+3. **Start begge tjenester** (anbefalt)
+   ```bash
+   npm run dev
+   ```
+   Dette starter **uvicorn** på `127.0.0.1:8001` og **Express** på `127.0.0.1:3000`.
 
-#### Eksterne API-er
+4. **Åpne appen**
+   - **Direkte via Node:** `http://localhost:3000` (samme origin som API — enklest).
+   - **Med Live Server:** Start Live Server som vanlig (f.eks. port 5500). Sørg for at `npm run dev` kjører; API-kall går til port 3000. Test at backend svarer: `http://127.0.0.1:3000/api/health` skal gi JSON med `"ok": true`.
 
-Eksterne geospatiale API-er kan integreres ved å hente data (f.eks. i `js/layers.js`) og legge dem til kartet som nye lag.
+### VS Code: automatisk backend
 
-### Datakatalog
+- Oppgaven **«Dev: sjøroute-backend (Python + Node)»** kan kjøre `npm run dev` **automatisk ved mappeåpning** (`.vscode/tasks.json`). Godkjenn **Allow automatic tasks** første gang.
+- **`.vscode/settings.json`** har `task.allowAutomaticTasks`: `on`.
 
-Oversikt over datasett som brukes i applikasjonen:
+### Feilsøking
 
-| Datasett | Kilde | Format | Bearbeiding |
-|----------|--------|--------|-------------|
-| **Nødhavn (primær)** | Supabase-database (tabell `nodhavn`), prosjekt-URL: `https://gdkqqlbjpfuscqpdribx.supabase.co` | Tabell med kolonner: longitude, latitude, navn, kommune, fylke, kategori, lenke_faktaark, forvaltningsstatus, nodhavnnummer. Leveres via Supabase REST-API. | Hentes med `fetchNodhavnFromSupabase()` i `js/layers.js`, konverteres til GeoJSON FeatureCollection med Point-geometri og properties; vises som sirkelmarkører med farge etter kategori (K1/K2/K3 m.m.), popups bygges i `js/popups.js`. |
-| **Nødhavn (fallback)** | Lokal fil: `data/nodhavn.geojson` | GeoJSON (FeatureCollection med Point-features og properties: name/navn, type/kategori, description, osv.). | Brukes når Supabase ikke er tilgjengelig; lastes i `js/layers.js` med `fetch('data/nodhavn.geojson')`, samme styling og popups som primærkilde. |
-| **Kartbakgrunn** | OpenStreetMap / CartoDB (Leaflet tile) | Rasterkart via XYZ-tiles. | Lastes og vises som bakgrunnskart i Leaflet; ingen videre bearbeiding. |
-| **Eksternt lag (OGC)** | GeoNorge Topo2 WMS | WMS (image/png). | Valgfritt overlay i `js/layers.js` (`createExternalLayer()`); kan slås på/av i lagkontrollen. |
+| Problem | Tiltak |
+|--------|--------|
+| `Failed to fetch` / tom respons | Sjekk at Node kjører på 3000 og Python på 8001; åpne `/api/health`. |
+| Live Server + HTTPS | Bruk HTTP Live Server, eller tilpass API til HTTPS; blandet innhold blokkerer `http://`-API. |
+| Chrome «Private Network Access» | Express sender svar-header som tillater kall fra annen lokal port; oppdatert `server.mjs`. |
 
-### Dataflyt – fra kilde til kart
+## Bruk
 
-- **Nødhavn:** Data hentes i `js/layers.js` fra Supabase-tabellen `nodhavn` med `fetchNodhavnFromSupabase()` (eller fallback til `data/nodhavn.geojson`). Rader konverteres til GeoJSON FeatureCollection med punktgeometri og properties. Laget legges på kartet som sirkelmarkører med farge etter kategori (K1/K2/K3; `getColorByType()` i `layers.js`). Popup-innhold bygges i `js/popups.js` (`makePopupContent()`). Filtrering på avstand og brukerposisjon håndteres i `js/map.js` (klikk på kart eller «Bruk posisjonen min»).
-- **Kartbakgrunn og WMS:** OpenStreetMap/CartoDB tiles og GeoNorge Topo2 WMS lastes via Leaflet; lagkontrollen styres fra `map.js`.
+- **Kart:** Pan, zoom, lagkontroll (bakgrunn, nødhavn, eksternt lag).
+- **Bruk posisjonen min:** Nødhavn innen valgt radius (Supabase-RPC + database).
+- **Finn nødhavner rundt punkt:** Klikk etter å ha valgt radius; viser treff innenfor sirkel.
+- **Klikk kart for nærmeste nødhavn:** Krever **sjøroute-backend** (se over). Viser sjøvei, avstand og markører på **klikk** og **valgt havn** (GeoJSON-koordinater).
+- **Vis alle nødhavner:** Nullstiller filter.
 
-### Forbedringspunkter ved nåværende løsning
+## Data og katalog
 
-- **Tilgjengelighet:** Kart og popups bør støtte tastaturnavigasjon og skjermleser (ARIA, fokusrekkefølge og beskrivende tekster) for å møte WCAG-bedre.
-- **Brukertilbakemelding:** Ved lasting av data eller ved feil mangler det tydelig loading-indikator og feilmeldinger; brukeren vet ikke alltid om noe lastes eller har feilet.
-- **Mobil:** Interaksjon (zoom, pan, klikk på markører) kan forbedres for touch med større treffflater og tydeligere tilstand (f.eks. valgt markør).
-- **Søk og filtrering:** Appen har avstandsfilter (radius 10–500 km) og «Bruk posisjonen min»; tekstsøk eller filter på fylke/kommune/kategori kunne utvides.
-- **Offline:** Løsningen er avhengig av nett; en enkel service worker og caching av statisk innhold og GeoJSON-fallback kunne gi begrenset bruk uten nett.
+- **Legg inn / oppdater GeoJSON** under `data/`; se `data/README.md`.
+- **Supabase:** Tabell `nodhavn` (flat `longitude`/`latitude` eller GeoJSON-struktur) — se `assets/js/layers.js`.
 
-### Technologies Used
+Oversikt over datasett (kort):
 
-- **Leaflet.js 1.9.4**: Interaktivt kart
-- **Supabase (supabase-js)**: Database og REST-API for nødhavndata
-- **OpenStreetMap / CartoDB**: Gratis bakgrunnskart
-- **HTML5/CSS3**: Moderne nettsider med CSS-variabler og skrifttypen DM Sans
-- **Vanilla JavaScript**: Modulær oppbygning (supabase, popups, layers, map) uten rammeverk
+| Datasett | Kilde | Merknad |
+|----------|--------|---------|
+| Nødhavn (primær) | Supabase `nodhavn` | Konverteres til GeoJSON i klienten |
+| Nødhavn (fallback) | `data/nodhavn.geojson` | Ved Supabase-feil |
+| Bakgrunn | OSM / CartoDB | XYZ-fliser |
+| Eksternt lag | GeoNorge Topo2 WMS | Valgfritt |
 
-### Nettleserstøtte
+## Dataflyt (kort)
 
-Appen fungerer i moderne nettlesere som støtter ES6 JavaScript, CSS3 og HTML5 (inkl. geolokasjon for «Bruk posisjonen min»).
+- **Nødhavn på kart:** `layers.js` → Supabase eller `fetch('data/nodhavn.geojson')` → `window.nodhavnGeoJSON` → Leaflet.
+- **Radius / posisjon:** `map.js` + Supabase RPC `get_nodhavn_within_distance` der aktuelt.
+- **Nærmeste etter sjø:** `map.js` → `POST /api/closest-port` → Node → Python/searoute → avstand + geometri; markører fra klikk + valgt feature.
 
-## Refleksjon (forbedringspunkter)
-- **Bedre datadokumentasjon**: Legge inn eksakte kildelenker (URL) og evt. lisensinfo for alle eksterne lag, samt tydelig versjonering av egne datasett.
-- **Feilhåndtering og robusthet**: Vise brukerfeedback ved nettverksfeil (f.eks. hvis GeoJSON/WMS ikke kan lastes) og fallback-løsninger.
-- **Ytelse**: For større GeoJSON kan man bruke generalisering, clustering, eller vector tiles for raskere rendering.
-- **UX og tilgjengelighet**: Forbedre kontrast, tastaturnavigasjon, og tydeligere legend/lag-navn; samt mobiltilpasning av kontroller.
-- **Testing og CI**: Enkle tester (linting) og GitHub Actions for å sikre at statiske filer bygger/kjører uten feil.
+## Forbedringspunkter & refleksjon
+
+- Tilgjengelighet (WCAG), tydeligere lasting/feil, mobil/touch, tekstfilter på fylke/kommune/kategori.
+- Offline/cache (service worker) for statisk innhold og fallback-GeoJSON.
+- Tester og CI (lint, enkle smoke-tester for API).
+- Tydeligere dokumentasjon av eksterne lag (lisenser, URL-er).
 
 ## License
-See LICENSE file for details.
+
+Se LICENSE-filen.
