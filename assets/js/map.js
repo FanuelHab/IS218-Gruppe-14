@@ -1,3 +1,41 @@
+/**
+ * Når siden kjører på Live Server (f.eks. 5500) og API på 3000, må vi bruke full URL.
+ * Samme hostname som siden (localhost vs 127.0.0.1 vs ::1) unngår rare tilkoblingsfeil.
+ * Override: window.__SEAROUTE_API_BASE__ = 'http://127.0.0.1:3000'
+ */
+function searouteApiUrl(path) {
+  if (typeof window === 'undefined') return path;
+  const override = window.__SEAROUTE_API_BASE__;
+  if (override != null && String(override).trim() !== '') {
+    const base = String(override).replace(/\/$/, '');
+    return base + (path.startsWith('/') ? path : '/' + path);
+  }
+  let u;
+  try {
+    u = new URL(window.location.href);
+  } catch {
+    return path;
+  }
+  const port = u.port;
+  const h = u.hostname;
+  const isLocal =
+    h === 'localhost' ||
+    h === '127.0.0.1' ||
+    h === '[::1]' ||
+    h === '::1';
+  if (isLocal && port && port !== '3000') {
+    const p = path.startsWith('/') ? path : '/' + path;
+    try {
+      const api = new URL(u.href);
+      api.port = '3000';
+      return api.origin + p;
+    } catch {
+      return `${u.protocol}//${h}:3000${p}`;
+    }
+  }
+  return path;
+}
+
 class MapApp {
   constructor() {
     this.NORWAY_CENTER = [62, 10];
@@ -77,92 +115,143 @@ class MapApp {
     }
   }
 
-  // ---------------- HAVERSINE ----------------
-  getDistanceKm(lat1, lon1, lat2, lon2) {
-    const R = 6371;
+  // ---------------- CLOSEST HARBOR (sea routing via API) ----------------
+  async handleClosestClick(latlng) {
+    this.clearAllOverlays();
 
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-
-    const a =
-      Math.sin(dLat / 2) ** 2 +
-      Math.cos(lat1 * Math.PI / 180) *
-      Math.cos(lat2 * Math.PI / 180) *
-      Math.sin(dLon / 2) ** 2;
-
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  }
-
-  // ---------------- CLOSEST HARBOR ----------------
-  findClosestHarbor(clickLatLng) {
     const geojson = window.nodhavnGeoJSON;
 
     if (!geojson) {
-      console.error("GeoJSON not loaded");
-      return { error: 'Data lastes...' };
-    }
-
-    if (!geojson.features || geojson.features.length === 0) {
-      return { error: 'Ingen nødhavn funnet.' };
-    }
-
-    let closest = null;
-    let minDistance = Infinity;
-
-    geojson.features.forEach(feature => {
-      const [lng, lat] = feature.geometry.coordinates;
-
-      const distance = this.getDistanceKm(
-        clickLatLng.lat,
-        clickLatLng.lng,
-        lat,
-        lng
-      );
-
-      if (distance < minDistance) {
-        minDistance = distance;
-        closest = feature;
-      }
-    });
-
-    return {
-      feature: closest,
-      distanceKm: minDistance
-    };
-  }
-
-  handleClosestClick(latlng) {
-    this.clearAllOverlays();
-
-    const result = this.findClosestHarbor(latlng);
-
-    if (result.error) {
-      this.updateHint(result.error);
+      this.updateHint('Data lastes...');
       return;
     }
 
-    const { feature, distanceKm } = result;
-    const navn = feature.properties.navn;
+    if (!geojson.features || geojson.features.length === 0) {
+      this.updateHint('Ingen nødhavn funnet.');
+      return;
+    }
 
-    const rounded = distanceKm.toFixed(2);
+    this.updateHint('Beregner sjøroute til nærmeste nødhavn...');
 
-    const category = feature.properties.kategori || '–';
+    const ports = geojson.features.map((feature, i) => {
+      const [lng, lat] = feature.geometry.coordinates;
+      return {
+        lat,
+        lng,
+        index: i,
+        properties: feature.properties || {}
+      };
+    });
 
-    this.updateHint(`Nærmeste: ${navn} – ${rounded} km`);
+    try {
+      const res = await fetch(searouteApiUrl('/api/closest-port'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          origin: { lat: latlng.lat, lng: latlng.lng },
+          ports
+        })
+      });
 
-    const clickMarker = L.marker(latlng)
-      .addTo(this.map)
-      .bindPopup(`<b>${navn}</b><br>${rounded} km<br>Kategori: ${category}`)
-      .openPopup();
+      const raw = await res.text();
+      const trimmed = raw.trim();
 
-    const [lng, lat] = feature.geometry.coordinates;
-    const harborLatLng = L.latLng(lat, lng);
+      if (!trimmed) {
+        if (res.status === 404) {
+          this.updateHint(
+            'Ingen /api/closest-port (404). Sjekk at `npm run dev` kjører (eller VS Code-oppgaven «Dev: sjøroute-backend»), og at Live Server ikke blokkerer port 3000.'
+          );
+        } else {
+          this.updateHint(`Sjøroute: tomt svar fra tjeneren (HTTP ${res.status}).`);
+        }
+        return;
+      }
 
-    const line = L.polyline([latlng, harborLatLng]).addTo(this.map);
+      let data;
+      try {
+        data = JSON.parse(trimmed);
+      } catch {
+        this.updateHint(
+          'Sjøroute: tjeneren returnerte ikke JSON (sjekk at du bruker Node-proxyen på port 3000).'
+        );
+        return;
+      }
 
-    this.closestResultLayer = L.layerGroup([clickMarker, line]).addTo(this.map);
+      if (!res.ok) {
+        const detail = data.detail;
+        const msg =
+          typeof detail === 'string'
+            ? detail
+            : Array.isArray(detail)
+              ? detail.map((d) => d.msg || JSON.stringify(d)).join('; ')
+              : data.error || res.statusText;
+        this.updateHint(`Sjøroute: ${msg}`);
+        return;
+      }
 
-    this.map.fitBounds(line.getBounds().pad(0.3));
+      const distanceKm = data.distance_km;
+      const props = data.port_properties || {};
+      const navn = props.navn || props.name || 'Nødhavn';
+      const rounded = Number(distanceKm).toFixed(2);
+      const category = props.kategori || '–';
+
+      const portIdx = data.port_index;
+      const portFeat = geojson.features[portIdx];
+      if (!portFeat || !portFeat.geometry || portFeat.geometry.type !== 'Point') {
+        this.updateHint('Kunne ikke plassere valgt havn (mangler punkt i GeoJSON).');
+        return;
+      }
+      const [harborLngRaw, harborLatRaw] = portFeat.geometry.coordinates;
+      const harborLng = data.port_lng != null ? Number(data.port_lng) : Number(harborLngRaw);
+      const harborLat = data.port_lat != null ? Number(data.port_lat) : Number(harborLatRaw);
+
+      this.updateHint(`Nærmeste (sjø): ${navn} – ${rounded} km`);
+
+      const clickExact = L.latLng(latlng.lat, latlng.lng);
+      const harborExact = L.latLng(harborLat, harborLng);
+
+      const clickMarker = L.marker(clickExact)
+        .addTo(this.map)
+        .bindPopup(`<b>${navn}</b><br>Sjøvei: ${rounded} km<br>Kategori: ${category}`)
+        .openPopup();
+
+      const geom = data.geometry;
+      if (!geom || geom.type !== 'LineString' || !Array.isArray(geom.coordinates)) {
+        this.updateHint('Ugyldig sjørute fra tjeneren.');
+        return;
+      }
+
+      const routeCoords = geom.coordinates.map((c) => [Number(c[0]), Number(c[1])]);
+      if (routeCoords.length >= 1) {
+        routeCoords[0] = [clickExact.lng, clickExact.lat];
+      }
+      if (routeCoords.length >= 2) {
+        routeCoords[routeCoords.length - 1] = [harborExact.lng, harborExact.lat];
+      }
+
+      const latlngs = routeCoords.map((c) => L.latLng(c[1], c[0]));
+      const line = L.polyline(latlngs, {
+        color: '#0066cc',
+        weight: 3,
+        opacity: 0.9
+      }).addTo(this.map);
+
+      const harborMarker = L.marker(harborExact)
+        .addTo(this.map)
+        .bindPopup(`<b>${navn}</b><br>Sjøvei: ${rounded} km<br>Kategori: ${category}`);
+
+      this.closestResultLayer = L.layerGroup([clickMarker, line, harborMarker]).addTo(this.map);
+      const bounds = L.latLngBounds(clickExact, harborExact);
+      latlngs.forEach((ll) => {
+        bounds.extend(ll);
+      });
+      this.map.fitBounds(bounds.pad(0.15));
+    } catch (err) {
+      const msg = err && err.message ? err.message : 'Ukjent feil';
+      this.updateHint(
+        `Kunne ikke nå sjøroute-API (${msg}). Kjør «npm run dev» i prosjektroten (Node 3000 + Python 8001). Med Live Server: åpne http://127.0.0.1:3000/api/health i nettleser — skal vise {"ok":true}.`
+      );
+    }
   }
 
   // ---------------- FILTER --------------
