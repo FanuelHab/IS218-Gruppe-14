@@ -20,12 +20,23 @@ https://github.com/user-attachments/assets/0cc9151d-967e-4716-b5b5-656082a2f157
 - **JavaScript**: Vanilla JS, modulær oppbygning (ingen build step)
 - **HTML/CSS**: HTML5 + CSS3 (designsystem med CSS-variabler, DM Sans)
 - **Kjøring**: Statisk (åpne `index.html`) eller lokal webserver (Python/Node)
+- **GeoPandas / Jupyter**: Romlig analyse og vektoranalyser i `Romlig Analyse.ipynb` (kjøres lokalt med Python)
+
+## Romlig analyse (notebook på GitHub)
+
+Notatboken for romlig analyse (utforskning av nødhavndata, buffer, overlay, aggregering m.m.) vises direkte på GitHub. Den består av **kodeceller** (Python) og **markdown-celler** med overskrifter og pekere til dokumentasjon.
+
+**[Romlig Analyse.ipynb](https://github.com/FanuelHab/IS218-Gruppe-14/blob/main/Romlig%20Analyse.ipynb)**
+
+Utdypende forklaringer i egne **markdown-filer** i repoet (f.eks. `analysis_first_cell.md`, `analysis_second_cell.md`, `analysis_third_cell.md` — én fil per dokumentert celle, referert fra notebooken).
 
 ## Prosjektstruktur
 
 ```
 .
 ├── index.html              # Hovedside: kart, søkepanel, legend
+├── Romlig Analyse.ipynb    # Jupyter: kodeceller + markdown; GeoPandas-analyse (se lenke over)
+├── analysis_*.md           # Dokumentasjon til notebook-celler (referert fra .ipynb)
 ├── css/
 │   └── style.css           # Stiler: søkepanel, knapper, popups, responsivt
 ├── js/
