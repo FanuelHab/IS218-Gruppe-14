@@ -1,0 +1,17 @@
+{
+  "name": "nodhavn-api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Static host + proxy to searoute Python service",
+  "main": "server.mjs",
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.21.0"
+  }
+}
