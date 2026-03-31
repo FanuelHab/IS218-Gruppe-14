@@ -85,24 +85,31 @@ SELECT public.ST_Distance($1::public.geometry, $2::public.geometry);
 
 **Merk:** Searoute er ment for **visualisering**, ikke offisiell navigasjon. Avstander følger bibliotekets sjønettverk.
 
-## Arkitektur
+## Teknisk stack
+- **Leaflet**: 1.9.4 (CDN via unpkg)
+- **Supabase**: @supabase/supabase-js (CDN) – henting av nødhavndata fra databasen
+- **OpenStreetMap / CartoDB**: Bakgrunnskart (OSM, Carto Lys) via Leaflet
+- **WMS (OGC)**: GeoNorge Topo2 (ekstern karttjeneste, valgfritt lag)
+- **JavaScript**: Vanilla JS, modulær oppbygning (ingen build step)
+- **HTML/CSS**: HTML5 + CSS3 (designsystem med CSS-variabler, DM Sans)
+- **Kjøring**: Statisk (åpne `index.html`) eller lokal webserver (Python/Node)
+- **GeoPandas / Jupyter**: Romlig analyse og vektoranalyser i `Romlig Analyse.ipynb` (kjøres lokalt med Python)
 
-```
-Nettleser (Leaflet)
-    → POST /api/closest-port  (eller /api/route)
-        → Node Express :3000  (proxy, CORS, statiske filer)
-            → Python FastAPI :8001  (searoute)
-```
+## Romlig analyse (notebook på GitHub)
 
-- **Nærmeste havn:** Klienten sender klikk-posisjon og alle havn (fra `window.nodhavnGeoJSON`). Python beregner korteste **sjøvei** per kandidat og velger minste avstand.
-- **Visning:** Start- og sluttmarkør settes til **eksakt klikk** og **eksakt havn-koordinat** fra GeoJSON. Linjens endepunkter justeres til disse; midtpunkt kommer fra searoute (rute på sjønettet).
-- **Live Server (VS Code):** Siden kan kjøre på f.eks. port 5500; API ligger på 3000. `assets/js/map.js` bruker full URL til `localhost:3000` når siden ikke allerede er på port 3000. Overstyring: `window.__SEAROUTE_API_BASE__`.
+Notatboken for romlig analyse (utforskning av nødhavndata, buffer, overlay, aggregering m.m.) vises direkte på GitHub. Den består av **kodeceller** (Python) og **markdown-celler** med overskrifter og pekere til dokumentasjon.
+
+**[Romlig Analyse.ipynb](https://github.com/FanuelHab/IS218-Gruppe-14/blob/main/Romlig%20Analyse.ipynb)**
+
+Utdypende forklaringer i egne **markdown-filer** i repoet (f.eks. `analysis_first_cell.md`, `analysis_second_cell.md`, `analysis_third_cell.md` — én fil per dokumentert celle, referert fra notebooken).
 
 ## Prosjektstruktur
 
 ```
 .
-├── index.html
+├── index.html              # Hovedside: kart, søkepanel, legend
+├── Romlig Analyse.ipynb    # Jupyter: kodeceller + markdown; GeoPandas-analyse (se lenke over)
+├── analysis_*.md           # Dokumentasjon til notebook-celler (referert fra .ipynb)
 ├── css/
 │   └── style.css
 ├── assets/js/
