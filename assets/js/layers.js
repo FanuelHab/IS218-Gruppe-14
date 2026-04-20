@@ -154,3 +154,52 @@ function createExternalLayer() {
     attribution: '© Kartverket/GeoNorge'
   });
 }
+
+function firstValue(value) {
+  if (Array.isArray(value)) {
+    return value.length > 0 ? value[0] : null;
+  }
+  return value;
+}
+
+/**
+ * Kommunegrenser fra lokal GeoJSON-fil.
+ */
+function createKommunerLayer() {
+  var layer = L.geoJSON(null, {
+    style: function () {
+      return {
+        color: '#6c7a89',
+        weight: 1,
+        opacity: 0.9,
+        fillColor: '#90caf9',
+        fillOpacity: 0.08
+      };
+    },
+    onEachFeature: function (feature, polygonLayer) {
+      var p = feature.properties || {};
+      var kommunenavn = p.kommunenavn || firstValue(p.navn) || 'Ukjent kommune';
+      var kommunenummer = p.kommunenummer || '–';
+      polygonLayer.bindPopup(
+        '<div class="popup-content">' +
+          '<p><strong>Kommune:</strong> ' + escapeHtml(String(kommunenavn)) + '</p>' +
+          '<p><strong>Kommunenummer:</strong> ' + escapeHtml(String(kommunenummer)) + '</p>' +
+        '</div>'
+      );
+    }
+  });
+
+  fetch('data/kommuner.geojson')
+    .then(function (res) {
+      if (!res.ok) throw new Error('Kunne ikke laste kommuner.geojson');
+      return res.json();
+    })
+    .then(function (geojson) {
+      layer.addData(geojson);
+    })
+    .catch(function () {
+      console.warn('Kunne ikke laste kommunegrenser fra data/kommuner.geojson.');
+    });
+
+  return layer;
+}
