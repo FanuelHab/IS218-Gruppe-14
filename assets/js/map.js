@@ -51,6 +51,7 @@ class MapApp {
     this.map = this.initMap();
     this.baseLayers = this.initBaseLayers();
     this.nodhavnLayer = createNodhavnGeoJSONLayer();
+    this.kommunerLayer = createKommunerLayer();
     this.externalLayer = createExternalLayer();
 
     this.initLayerControls();
@@ -95,9 +96,12 @@ class MapApp {
     }
 
     this.nodhavnLayer.addTo(this.map);
+    this.kommunerLayer.addTo(this.map);
+    this.nodhavnLayer.bringToFront();
 
     const overlays = {
       'Nødhavn (søkeresultat)': this.nodhavnLayer,
+      'Kommunegrenser': this.kommunerLayer,
       'Eksternt lag (OGC)': this.externalLayer
     };
 
